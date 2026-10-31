@@ -662,11 +662,32 @@ val saved = if (alreadyExists) {
         return
     }
 
-    if (apiKey.isBlank()) {
-        status = "Please add your Groq API key in Settings."
-        showSettings = true
+    // Handle app-opening commands
+val lowerPrompt = prompt.lowercase().trim()
+
+val appPrefixes = listOf("open ", "launch ", "start ")
+
+val appCommand = appPrefixes.firstOrNull {
+    lowerPrompt.startsWith(it)
+}
+
+if (appCommand != null) {
+    val appName = prompt.substring(appCommand.length).trim()
+
+    if (appName.isNotBlank()) {
+        val result = onOpenApp(appName)
+        messages.add(ChatLine(false, result))
+        status = "Here for you"
+        onSpeak(result, language)
         return
     }
+}
+
+if (apiKey.isBlank()) {
+    status = "Please add your Groq API key in Settings."
+    showSettings = true
+    return
+}
 
     input = ""
     messages.add(ChatLine(true, prompt))
