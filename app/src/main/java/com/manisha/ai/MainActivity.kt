@@ -256,7 +256,7 @@ tts?.speak(
     }
 
     
-pprivate fun askManisha(
+private fun askManisha(
     prompt: String,
     language: String,
     apiKey: String,
