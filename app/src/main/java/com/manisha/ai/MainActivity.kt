@@ -52,6 +52,12 @@ private val Night = Color(0xFF050B18)
 private val Panel = Color(0xFF101D32)
 private val Cyan = Color(0xFF56D8FF)
 private val SoftWhite = Color(0xFFEAF7FF)
+private val languages = listOf(
+    "Hindi" to "hi-IN",
+    "English" to "en-IN",
+    "Marathi" to "mr-IN",
+    "Gujarati" to "gu-IN"
+)
 
 data class ChatLine(val fromUser: Boolean, val text: String)
 
@@ -60,12 +66,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private var ttsReady = false
     private val http = OkHttpClient()
 
-    private val languages = listOf(
-        "Hindi" to "hi-IN",
-        "English" to "en-IN",
-        "Marathi" to "mr-IN",
-        "Gujarati" to "gu-IN"
-    )
+  
 
     private val speechLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
