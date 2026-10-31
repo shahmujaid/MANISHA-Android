@@ -347,12 +347,13 @@ fun ManishaScreen(
         onStatus: (String) -> Unit
     ) -> Unit,
     onAsk: (
-        String,
-        String,
-        String,
-        String,
-        (Result<String>) -> Unit
-    ) -> Unit
+    String,
+    String,
+    String,
+    String,
+    Boolean,
+    (Result<String>) -> Unit
+) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -651,6 +652,39 @@ DisposableEffect(context) {
 }
 
 Spacer(Modifier.height(12.dp))
+
+Row(
+    modifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(14.dp))
+        .background(Color(0xFF1A2B42))
+        .padding(12.dp),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically
+) {
+    Column {
+        Text(
+            "💕 Girlfriend Mode",
+            color = SoftWhite,
+            fontSize = 15.sp
+        )
+        Text(
+            if (girlfriendMode) "Romantic & caring" else "Professional assistant",
+            color = Color(0xFF80B7D2),
+            fontSize = 11.sp
+        )
+    }
+
+    Switch(
+        checked = girlfriendMode,
+        onCheckedChange = { enabled ->
+            girlfriendMode = enabled
+            prefs.edit()
+                .putBoolean("girlfriend_mode", enabled)
+                .apply()
+        }
+    )
+}
 
                 Text(
                     "CONVERSATION",
