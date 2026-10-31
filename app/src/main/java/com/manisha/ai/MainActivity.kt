@@ -542,43 +542,98 @@ DisposableEffect(context) {
     val scope = rememberCoroutineScope()
 
     // Shared send function for both typed and recognized voice messages.
-    fun sendMessage(messageText: String) {
-        val prompt = messageText.trim()
+    
+fun sendMessage(messageText: String) {
+    val prompt = messageText.trim()
 
-        if (prompt.isBlank()) return
+    if (prompt.isBlank()) return
 
-        if (loading) {
-            status = "Please wait. I'm answering your previous message."
+    if (loading) {
+        status = "Please wait. I'm answering your previous message."
+        return
+    }
+
+    // Detect an explicit request to save a memory.
+    val rememberPrefixes = listOf(
+        "please remember that ",
+        "remember that ",
+        "remember ",
+        "yaad rakhna ki ",
+        "yaad rakhna ke ",
+        "yaad rakhna "
+    )
+
+    val lowerPrompt = prompt.lowercase(Locale.ROOT)
+
+    val rememberPrefix = rememberPrefixes.firstOrNull {
+        lowerPrompt.startsWith(it)
+    }
+
+    if (rememberPrefix != null) {
+        val memoryText = prompt
+            .substring(rememberPrefix.length)
+            .trim()
+
+        if (memoryText.isBlank()) {
+            status = "Please tell me what you want me to remember."
             return
         }
 
-        if (apiKey.isBlank()) {
-            status = "Please add your Groq API key in Settings."
-            showSettings = true
-            return
-        }
-
-        input = ""
         messages.add(ChatLine(true, prompt))
-        loading = true
-        status = "Thinking…"
 
-        onAsk(prompt, language, apiKey, model, girlfriendMode) { result ->
-            scope.launch {
-                loading = false
+        val saved = SmartMemory.addMemory(
+            context,
+            memoryText
+        )
 
-                result.onSuccess { answer ->
-                    messages.add(ChatLine(false, answer))
-                    status = "Here for you"
-                    onSpeak(answer, language)
-                }.onFailure { error ->
-                    val errorMessage = error.message ?: "Something went wrong."
-                    messages.add(ChatLine(false, errorMessage))
-                    status = "Please check settings"
-                }
+        val reply = if (saved) {
+            if (language == "hi-IN") {
+                "Haan jaan, maine ye baat yaad rakh li hai. ❤️"
+            } else {
+                "Of course! I've saved that in my memory. ❤️"
+            }
+        } else {
+            if (language == "hi-IN") {
+                "Ye baat pehle se meri memory mein hai, jaan. ❤️"
+            } else {
+                "I already have this in my memory. ❤️"
+            }
+        }
+
+        messages.add(ChatLine(false, reply))
+        status = if (saved) "Memory saved" else "Already remembered"
+        onSpeak(reply, language)
+        return
+    }
+
+    if (apiKey.isBlank()) {
+        status = "Please add your Groq API key in Settings."
+        showSettings = true
+        return
+    }
+
+    input = ""
+    messages.add(ChatLine(true, prompt))
+    loading = true
+    status = "Thinking…"
+
+    onAsk(prompt, language, apiKey, model, girlfriendMode) { result ->
+        scope.launch {
+            loading = false
+
+            result.onSuccess { answer ->
+                messages.add(ChatLine(false, answer))
+                status = "Here for you"
+                onSpeak(answer, language)
+            }.onFailure { error ->
+                val errorMessage = error.message ?: "Something went wrong."
+                messages.add(ChatLine(false, errorMessage))
+                status = "Please check settings"
             }
         }
     }
+}
+
 
     MaterialTheme(
         colorScheme = darkColorScheme(
