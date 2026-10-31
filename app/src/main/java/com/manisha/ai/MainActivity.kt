@@ -151,13 +151,14 @@ private fun stopManishaVoiceService() {
                     statusCallback = status
                     startListening(locale)
                 },
-                onAsk = { prompt, language, apiKey, model, girlfriendMode, done ->
+                onAsk = { prompt, language, apiKey, model, girlfriendMode, conversationHistory, done ->
     askManisha(
         prompt,
         language,
         apiKey,
         model,
         girlfriendMode,
+        conversationHistory,
         done
     )
 }
@@ -255,12 +256,13 @@ tts?.speak(
     }
 
     
-private fun askManisha(
+pprivate fun askManisha(
     prompt: String,
     language: String,
     apiKey: String,
     model: String,
     girlfriendMode: Boolean,
+    conversationHistory: List<ChatLine>,
     callback: (Result<String>) -> Unit
 ) {
     if (apiKey.isBlank()) {
@@ -349,16 +351,26 @@ private fun askManisha(
             """.trimIndent() + memorySection
 
             val messages = JSONArray()
-                .put(
-                    JSONObject()
-                        .put("role", "system")
-                        .put("content", system)
-                )
-                .put(
-                    JSONObject()
-                        .put("role", "user")
-                        .put("content", prompt)
-                )
+
+messages.put(
+    JSONObject()
+        .put("role", "system")
+        .put("content", system)
+)
+
+conversationHistory.forEach { line ->
+    messages.put(
+        JSONObject()
+            .put("role", if (line.fromUser) "user" else "assistant")
+            .put("content", line.text)
+    )
+}
+
+messages.put(
+    JSONObject()
+        .put("role", "user")
+        .put("content", prompt)
+)
 
             val body = JSONObject()
                 .put("model", model)
@@ -434,6 +446,7 @@ fun ManishaScreen(
     String,
     String,
     Boolean,
+    List<ChatLine>,
     (Result<String>) -> Unit
 ) -> Unit
 ) {
@@ -622,7 +635,9 @@ val saved = if (alreadyExists) {
     loading = true
     status = "Thinking…"
 
-    onAsk(prompt, language, apiKey, model, girlfriendMode) { result ->
+    val conversationHistory = messages.dropLast(1).takeLast(10)
+
+    onAsk(prompt, language, apiKey, model, girlfriendMode, conversationHistory) { result ->
         scope.launch {
             loading = false
 
