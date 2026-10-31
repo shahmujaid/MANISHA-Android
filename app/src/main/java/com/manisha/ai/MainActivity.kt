@@ -45,6 +45,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
 import kotlinx.coroutines.launch
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import android.os.Build
+
 
 private val Night = Color(0xFF050B18)
 private val Panel = Color(0xFF101D32)
