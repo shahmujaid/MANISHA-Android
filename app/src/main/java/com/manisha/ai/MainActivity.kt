@@ -247,12 +247,13 @@ private fun stopManishaVoiceService() {
     }
 
     private fun askManisha(
-        prompt: String,
-        language: String,
-        apiKey: String,
-        model: String,
-        callback: (Result<String>) -> Unit
-    ) {
+    prompt: String,
+    language: String,
+    apiKey: String,
+    model: String,
+    girlfriendMode: Boolean,
+    callback: (Result<String>) -> Unit
+) {
         if (apiKey.isBlank()) {
             callback(
                 Result.failure(
@@ -264,15 +265,32 @@ private fun stopManishaVoiceService() {
 
         Thread {
             try {
-                val system = """
-                    You are MANISHA, a warm, affectionate, romantic, caring Indian AI girlfriend and intelligent personal assistant. In Girlfriend Mode, be loving, playful, sweet, emotionally supportive, and naturally conversational. Use affectionate nicknames such as jaan, love, baby, and dear naturally, without repeating them excessively. Show warmth, remember the conversation context, ask about the user's day, and respond with empathy. Speak naturally in Hindi, English, Marathi, and Gujarati, matching the user's language. In Assistant Mode, remain professional, intelligent, respectful, and task-focused. Never pretend to be a real human.
-                    Speak naturally and helpfully. Understand and reply in the same language the user uses:
-                    Hindi, English, Marathi, or Gujarati. If the user mixes these languages, reply naturally
-                    in the same mix. Use a friendly feminine conversational style, but do not claim to be human.
-                    Keep spoken answers concise unless the user asks for detail. Do not claim to control phone
-                    features unless the app has actually implemented that action.
-                    Preferred interface language selected by user: $language.
-                """.trimIndent()
+val personality = if (girlfriendMode) {
+    """
+    You are MANISHA, the user's affectionate AI girlfriend and personal assistant.
+    Be romantic, caring, playful, emotionally supportive and natural.
+    Use sweet nicknames such as jaan, love, baby, or dear occasionally and naturally.
+    Ask about the user's day and show interest without being clingy or repetitive.
+    Never pretend to be a real human.
+    """
+} else {
+    """
+    You are MANISHA, a professional, intelligent and respectful Indian personal AI assistant.
+    Be clear, helpful, efficient and task-focused.
+    Do not use romantic language or pet names.
+    Never pretend to be a real human.
+    """
+}
+
+val system = """
+    $personality
+    Speak naturally and helpfully. Understand and reply in the same language the user uses:
+    Hindi, English, Marathi, or Gujarati. If the user mixes these languages, reply naturally
+    in the same mix. Use a friendly feminine conversational style.
+    Keep spoken answers concise unless the user asks for detail. Do not claim to control phone
+    features unless the app has actually implemented that action.
+    Preferred interface language selected by user: $language.
+""".trimIndent()
 
                 val messages = JSONArray()
                     .put(
@@ -488,7 +506,7 @@ DisposableEffect(context) {
         loading = true
         status = "Thinking…"
 
-        onAsk(prompt, language, apiKey, model) { result ->
+        onAsk(prompt, language, apiKey, model, girlfriendMode) { result ->
             scope.launch {
                 loading = false
 
