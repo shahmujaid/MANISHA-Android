@@ -378,6 +378,12 @@ fun ManishaScreen(
         mutableStateOf(prefs.getString("language", "hi-IN") ?: "hi-IN")
     }
 
+    var girlfriendMode by remember {
+    mutableStateOf(
+        prefs.getBoolean("girlfriend_mode", true)
+    )
+}
+
     var input by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("Ready when you are") }
     var loading by remember { mutableStateOf(false) }
