@@ -1,3 +1,4 @@
+
 package com.manisha.ai
 
 import android.Manifest
@@ -23,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,9 +37,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -52,6 +49,7 @@ private val Night = Color(0xFF050B18)
 private val Panel = Color(0xFF101D32)
 private val Cyan = Color(0xFF56D8FF)
 private val SoftWhite = Color(0xFFEAF7FF)
+
 private val languages = listOf(
     "Hindi" to "hi-IN",
     "English" to "en-IN",
@@ -62,11 +60,14 @@ private val languages = listOf(
 data class ChatLine(val fromUser: Boolean, val text: String)
 
 class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
+
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private val http = OkHttpClient()
 
-  
+    private var pendingLocale: String = "hi-IN"
+    private var recognizedCallback: ((String) -> Unit)? = null
+    private var statusCallback: ((String) -> Unit)? = null
 
     private val speechLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -74,23 +75,29 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         val text = result.data
             ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             ?.firstOrNull()
-        if (!text.isNullOrBlank()) onRecognized(text)
+
+        if (!text.isNullOrBlank()) {
+            onRecognized(text)
+        } else {
+            statusUpdate("I couldn't hear you. Please try again.")
+        }
     }
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) launchSpeech(pendingLocale)
-        else statusUpdate("Microphone permission is needed for voice input.")
+        if (granted) {
+            launchSpeech(pendingLocale)
+        } else {
+            statusUpdate("Microphone permission is needed for voice input.")
+        }
     }
-
-    private var pendingLocale: String = "hi-IN"
-    private var recognizedCallback: ((String) -> Unit)? = null
-    private var statusCallback: ((String) -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         tts = TextToSpeech(this, this)
+
         setContent {
             ManishaScreen(
                 onSpeak = { text, lang -> speak(text, lang) },
@@ -115,52 +122,76 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             statusUpdate("Text-to-speech is still starting. Please try again.")
             return
         }
+
         val locale = Locale.forLanguageTag(language)
         val result = tts?.setLanguage(locale)
-        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-            statusUpdate("This language voice is not installed. Install it in Android Text-to-speech settings.")
+
+        if (result == TextToSpeech.LANG_MISSING_DATA ||
+            result == TextToSpeech.LANG_NOT_SUPPORTED
+        ) {
+            statusUpdate(
+                "This language voice is not installed. Install it in Android text-to-speech settings."
+            )
             return
         }
+
         tts?.setSpeechRate(0.94f)
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "manisha_reply")
+        tts?.speak(
+            text,
+            TextToSpeech.QUEUE_FLUSH,
+            null,
+            "manisha_reply"
+        )
     }
 
     private fun startListening(locale: String) {
         pendingLocale = locale
+
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             statusUpdate("Speech recognition is not available on this phone.")
             return
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) {
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-        } else launchSpeech(locale)
+        } else {
+            launchSpeech(locale)
+        }
     }
 
     private fun launchSpeech(locale: String) {
-        // Android speech service language support depends on the recognizer installed on the phone.
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, locale)
             putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, false)
             putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to MANISHA")
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
         }
+
         try {
             speechLauncher.launch(intent)
-            statusUpdate("Listening…")
+            statusUpdate("Listening… Speak now.")
         } catch (_: Exception) {
             statusUpdate("Could not start speech recognition. Check your speech service.")
         }
     }
 
     private fun onRecognized(text: String) {
+        statusUpdate("Voice received. Sending your message…")
         recognizedCallback?.invoke(text)
-        statusUpdate("I heard you.")
     }
 
-    private fun statusUpdate(message: String) { statusCallback?.invoke(message) }
+    private fun statusUpdate(message: String) {
+        statusCallback?.invoke(message)
+    }
 
     private fun askManisha(
         prompt: String,
@@ -170,9 +201,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         callback: (Result<String>) -> Unit
     ) {
         if (apiKey.isBlank()) {
-            callback(Result.failure(IllegalStateException("Add your Groq API key in Settings first.")))
+            callback(
+                Result.failure(
+                    IllegalStateException("Add your Groq API key in Settings first.")
+                )
+            )
             return
         }
+
         Thread {
             try {
                 val system = """
@@ -184,16 +220,28 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                     features unless the app has actually implemented that action.
                     Preferred interface language selected by user: $language.
                 """.trimIndent()
+
                 val messages = JSONArray()
-                    .put(JSONObject().put("role", "system").put("content", system))
-                    .put(JSONObject().put("role", "user").put("content", prompt))
+                    .put(
+                        JSONObject()
+                            .put("role", "system")
+                            .put("content", system)
+                    )
+                    .put(
+                        JSONObject()
+                            .put("role", "user")
+                            .put("content", prompt)
+                    )
+
                 val body = JSONObject()
                     .put("model", model)
                     .put("messages", messages)
                     .put("temperature", 0.7)
                     .put("max_completion_tokens", 700)
                     .toString()
-                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+                    .toRequestBody(
+                        "application/json; charset=utf-8".toMediaType()
+                    )
 
                 val request = Request.Builder()
                     .url("https://api.groq.com/openai/v1/chat/completions")
@@ -204,16 +252,29 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
                 http.newCall(request).execute().use { response ->
                     val responseText = response.body?.string().orEmpty()
+
                     if (!response.isSuccessful) {
-                        val detail = try { JSONObject(responseText).optJSONObject("error")?.optString("message") } catch (_: Exception) { null }
-                        throw IllegalStateException(detail?.takeIf { it.isNotBlank() } ?: "AI request failed (HTTP ${response.code}). Check API key, model and internet.")
+                        val detail = try {
+                            JSONObject(responseText)
+                                .optJSONObject("error")
+                                ?.optString("message")
+                        } catch (_: Exception) {
+                            null
+                        }
+
+                        throw IllegalStateException(
+                            detail?.takeIf { it.isNotBlank() }
+                                ?: "AI request failed (HTTP ${response.code}). Check API key, model and internet."
+                        )
                     }
+
                     val answer = JSONObject(responseText)
                         .getJSONArray("choices")
                         .getJSONObject(0)
                         .getJSONObject("message")
                         .getString("content")
                         .trim()
+
                     callback(Result.success(answer))
                 }
             } catch (e: Exception) {
@@ -232,20 +293,97 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 @Composable
 fun ManishaScreen(
     onSpeak: (String, String) -> Unit,
-    onListen: (locale: String, onText: (String) -> Unit, onStatus: (String) -> Unit) -> Unit,
-    onAsk: (String, String, String, String, (Result<String>) -> Unit) -> Unit
+    onListen: (
+        locale: String,
+        onText: (String) -> Unit,
+        onStatus: (String) -> Unit
+    ) -> Unit,
+    onAsk: (
+        String,
+        String,
+        String,
+        String,
+        (Result<String>) -> Unit
+    ) -> Unit
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val prefs = remember { context.getSharedPreferences("manisha_settings", android.content.Context.MODE_PRIVATE) }
-    var apiKey by remember { mutableStateOf(prefs.getString("groq_key", "") ?: "") }
-    var model by remember { mutableStateOf(prefs.getString("model", "openai/gpt-oss-20b") ?: "openai/gpt-oss-20b") }
-    var language by remember { mutableStateOf(prefs.getString("language", "hi-IN") ?: "hi-IN") }
+
+    val prefs = remember {
+        context.getSharedPreferences(
+            "manisha_settings",
+            android.content.Context.MODE_PRIVATE
+        )
+    }
+
+    var apiKey by remember {
+        mutableStateOf(prefs.getString("groq_key", "") ?: "")
+    }
+
+    var model by remember {
+        mutableStateOf(
+            prefs.getString("model", "openai/gpt-oss-20b")
+                ?: "openai/gpt-oss-20b"
+        )
+    }
+
+    var language by remember {
+        mutableStateOf(prefs.getString("language", "hi-IN") ?: "hi-IN")
+    }
+
     var input by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("Ready when you are") }
     var loading by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
-    val messages = remember { mutableStateListOf(ChatLine(false, "Namaste! Main MANISHA hoon. Aap mujhse Hindi, English, Marathi ya Gujarati mein baat kar sakte hain. 😊")) }
+
+    val messages = remember {
+        mutableStateListOf(
+            ChatLine(
+                false,
+                "Namaste! Main MANISHA hoon. Aap mujhse Hindi, English, Marathi ya Gujarati mein baat kar sakte hain. 😊"
+            )
+        )
+    }
+
     val scope = rememberCoroutineScope()
+
+    // Shared send function for both typed and recognized voice messages.
+    fun sendMessage(messageText: String) {
+        val prompt = messageText.trim()
+
+        if (prompt.isBlank()) return
+
+        if (loading) {
+            status = "Please wait. I'm answering your previous message."
+            return
+        }
+
+        if (apiKey.isBlank()) {
+            status = "Please add your Groq API key in Settings."
+            showSettings = true
+            return
+        }
+
+        input = ""
+        messages.add(ChatLine(true, prompt))
+        loading = true
+        status = "Thinking…"
+
+        onAsk(prompt, language, apiKey, model) { result ->
+            scope.launch {
+                loading = false
+
+                result.onSuccess { answer ->
+                    messages.add(ChatLine(false, answer))
+                    status = "Here for you"
+                    onSpeak(answer, language)
+                }.onFailure { error ->
+                    val errorMessage = error.message ?: "Something went wrong."
+                    messages.add(ChatLine(false, errorMessage))
+                    status = "Please check settings"
+                }
+            }
+        }
+    }
 
     MaterialTheme(
         colorScheme = darkColorScheme(
@@ -258,55 +396,133 @@ fun ManishaScreen(
         )
     ) {
         Box(
-            Modifier.fillMaxSize().background(
-                Brush.verticalGradient(listOf(Color(0xFF07182B), Night, Color(0xFF02050C)))
-            )
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color(0xFF07182B),
+                            Night,
+                            Color(0xFF02050C)
+                        )
+                    )
+                )
         ) {
-            Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 14.dp)) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("MANISHA", color = Cyan, fontSize = 26.sp, fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
-                        Text("YOUR PERSONAL AI COMPANION", color = Color(0xFF9BB9CC), fontSize = 9.sp, letterSpacing = 1.5.sp)
+                        Text(
+                            "MANISHA",
+                            color = Cyan,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 3.sp
+                        )
+
+                        Text(
+                            "YOUR PERSONAL AI COMPANION",
+                            color = Color(0xFF9BB9CC),
+                            fontSize = 9.sp,
+                            letterSpacing = 1.5.sp
+                        )
                     }
+
                     IconButton(onClick = { showSettings = true }) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Cyan)
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = Cyan
+                        )
                     }
                 }
 
                 Spacer(Modifier.height(12.dp))
-                // Animated avatar core (stylized interface element, not a real animated human video).
+
                 val infinite = rememberInfiniteTransition(label = "avatar")
+
                 val pulse by infinite.animateFloat(
-                    initialValue = 0.96f, targetValue = 1.04f,
-                    animationSpec = infiniteRepeatable(tween(1700), RepeatMode.Reverse),
+                    initialValue = 0.96f,
+                    targetValue = 1.04f,
+                    animationSpec = infiniteRepeatable(
+                        tween(1700),
+                        RepeatMode.Reverse
+                    ),
                     label = "pulse"
                 )
+
                 Box(
-                    Modifier.fillMaxWidth().weight(0.42f),
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(0.42f),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
-                        Modifier.size(220.dp).scale(pulse).clip(CircleShape)
-                            .background(Brush.radialGradient(listOf(Color(0xFF1B8FC0), Color(0xFF103A65), Color.Transparent)))
-                            .border(1.dp, Cyan.copy(alpha = 0.45f), CircleShape),
+                        Modifier
+                            .size(220.dp)
+                            .scale(pulse)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    listOf(
+                                        Color(0xFF1B8FC0),
+                                        Color(0xFF103A65),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                            .border(
+                                1.dp,
+                                Cyan.copy(alpha = 0.45f),
+                                CircleShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.manisha_avatar),
+                            painter = androidx.compose.ui.res.painterResource(
+                                id = R.drawable.manisha_avatar
+                            ),
                             contentDescription = "MANISHA female AI avatar",
                             modifier = Modifier.size(150.dp)
                         )
                     }
-                    Column(Modifier.align(Alignment.BottomCenter), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("MANISHA", color = SoftWhite, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 3.sp)
-                        Text(status, color = Cyan, fontSize = 12.sp)
+
+                    Column(
+                        Modifier.align(Alignment.BottomCenter),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "MANISHA",
+                            color = SoftWhite,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 3.sp
+                        )
+
+                        Text(
+                            status,
+                            color = Cyan,
+                            fontSize = 12.sp
+                        )
                     }
                 }
 
-                Text("CONVERSATION", color = Color(0xFF80B7D2), fontSize = 10.sp, letterSpacing = 2.sp)
+                Text(
+                    "CONVERSATION",
+                    color = Color(0xFF80B7D2),
+                    fontSize = 10.sp,
+                    letterSpacing = 2.sp
+                )
+
                 Spacer(Modifier.height(6.dp))
+
                 LazyColumn(
-                    modifier = Modifier.weight(0.42f).fillMaxWidth()
+                    modifier = Modifier
+                        .weight(0.42f)
+                        .fillMaxWidth()
                         .clip(RoundedCornerShape(18.dp))
                         .background(Color(0xAA0D1A2C))
                         .padding(10.dp),
@@ -315,14 +531,29 @@ fun ManishaScreen(
                     items(messages) { line ->
                         Row(
                             Modifier.fillMaxWidth(),
-                            horizontalArrangement = if (line.fromUser) Arrangement.End else Arrangement.Start
+                            horizontalArrangement = if (line.fromUser) {
+                                Arrangement.End
+                            } else {
+                                Arrangement.Start
+                            }
                         ) {
                             Text(
                                 line.text,
-                                color = if (line.fromUser) Color(0xFF07121D) else SoftWhite,
-                                modifier = Modifier.widthIn(max = 300.dp)
+                                color = if (line.fromUser) {
+                                    Color(0xFF07121D)
+                                } else {
+                                    SoftWhite
+                                },
+                                modifier = Modifier
+                                    .widthIn(max = 300.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(if (line.fromUser) Cyan else Color(0xFF1A2B42))
+                                    .background(
+                                        if (line.fromUser) {
+                                            Cyan
+                                        } else {
+                                            Color(0xFF1A2B42)
+                                        }
+                                    )
                                     .padding(11.dp),
                                 fontSize = 14.sp
                             )
@@ -331,58 +562,103 @@ fun ManishaScreen(
                 }
 
                 Spacer(Modifier.height(10.dp))
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.weight(1f).clip(RoundedCornerShape(24.dp))
-                            .background(Color(0xFF13243A)).padding(horizontal = 15.dp, vertical = 13.dp)
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color(0xFF13243A))
+                            .padding(
+                                horizontal = 15.dp,
+                                vertical = 13.dp
+                            )
                     ) {
-                        if (input.isEmpty()) Text("Talk to Manisha…", color = Color(0xFF8AA4B9))
+                        if (input.isEmpty()) {
+                            Text(
+                                "Talk to Manisha…",
+                                color = Color(0xFF8AA4B9)
+                            )
+                        }
+
                         BasicTextField(
-                            value = input, onValueChange = { input = it },
-                            modifier = Modifier.fillMaxWidth(), singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(color = SoftWhite, fontSize = 14.sp)
+                            value = input,
+                            onValueChange = { input = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = SoftWhite,
+                                fontSize = 14.sp
+                            )
                         )
                     }
+
                     Spacer(Modifier.width(8.dp))
+
+                    // Voice recognition now sends the recognized words automatically.
                     IconButton(
+                        enabled = !loading,
                         onClick = {
                             onListen(
                                 language,
-                                { spoken -> input = spoken; status = "You can send your message now" },
-                                { newStatus -> status = newStatus }
+                                { spoken ->
+                                    sendMessage(spoken)
+                                },
+                                { newStatus ->
+                                    status = newStatus
+                                }
                             )
                         },
-                        modifier = Modifier.size(48.dp).background(Color(0xFF174C70), CircleShape)
-                    ) { Icon(Icons.Default.Mic, contentDescription = "Speak", tint = Cyan) }
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                Color(0xFF174C70),
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            Icons.Default.Mic,
+                            contentDescription = "Speak and send automatically",
+                            tint = Cyan
+                        )
+                    }
+
                     Spacer(Modifier.width(5.dp))
+
+                    // Manual typing and Send button remain available.
                     IconButton(
                         enabled = input.isNotBlank() && !loading,
                         onClick = {
-                            val prompt = input.trim()
-                            input = ""
-                            messages.add(ChatLine(true, prompt))
-                            loading = true
-                            status = "Thinking…"
-                            onAsk(prompt, language, apiKey, model) { result ->
-                                scope.launch {
-                                    loading = false
-                                    result.onSuccess { answer ->
-                                        messages.add(ChatLine(false, answer))
-                                        status = "Here for you"
-                                        onSpeak(answer, language)
-                                    }.onFailure { error ->
-                                        val msg = error.message ?: "Something went wrong."
-                                        messages.add(ChatLine(false, msg))
-                                        status = "Please check settings"
-                                    }
-                                }
-                            }
+                            sendMessage(input)
                         },
-                        modifier = Modifier.size(48.dp).background(if (input.isNotBlank()) Color(0xFF174C70) else Color(0xFF263445), CircleShape)
-                    ) { Icon(Icons.Default.Send, contentDescription = "Send", tint = Cyan) }
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                if (input.isNotBlank()) {
+                                    Color(0xFF174C70)
+                                } else {
+                                    Color(0xFF263445)
+                                },
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = "Send",
+                            tint = Cyan
+                        )
+                    }
                 }
+
                 Spacer(Modifier.height(8.dp))
-                Text("HINDI  •  ENGLISH  •  MARATHI  •  GUJARATI", color = Color(0xFF7798B0), fontSize = 9.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+
+                Text(
+                    "HINDI  •  ENGLISH  •  MARATHI  •  GUJARATI",
+                    color = Color(0xFF7798B0),
+                    fontSize = 9.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             if (showSettings) {
@@ -390,33 +666,90 @@ fun ManishaScreen(
                     onDismissRequest = { showSettings = false },
                     title = { Text("MANISHA settings") },
                     text = {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             Text("Groq API key", color = Cyan)
-                            OutlinedTextField(value = apiKey, onValueChange = { apiKey = it }, label = { Text("Paste API key") }, singleLine = true)
+
+                            OutlinedTextField(
+                                value = apiKey,
+                                onValueChange = { apiKey = it },
+                                label = { Text("Paste API key") },
+                                singleLine = true
+                            )
+
                             Text("Model ID", color = Cyan)
-                            OutlinedTextField(value = model, onValueChange = { model = it }, singleLine = true)
+
+                            OutlinedTextField(
+                                value = model,
+                                onValueChange = { model = it },
+                                singleLine = true
+                            )
+
                             Text("Preferred language", color = Cyan)
-                            var expanded by remember { mutableStateOf(false) }
+
+                            var expanded by remember {
+                                mutableStateOf(false)
+                            }
+
                             Box {
-                                OutlinedButton(onClick = { expanded = true }) {
-                                    Text(languages.firstOrNull { it.second == language }?.first ?: "Hindi")
+                                OutlinedButton(
+                                    onClick = { expanded = true }
+                                ) {
+                                    Text(
+                                        languages.firstOrNull {
+                                            it.second == language
+                                        }?.first ?: "Hindi"
+                                    )
                                 }
-                                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = {
+                                        expanded = false
+                                    }
+                                ) {
                                     languages.forEach { (label, code) ->
-                                        DropdownMenuItem(text = { Text(label) }, onClick = { language = code; expanded = false })
+                                        DropdownMenuItem(
+                                            text = { Text(label) },
+                                            onClick = {
+                                                language = code
+                                                expanded = false
+                                            }
+                                        )
                                     }
                                 }
                             }
-                            Text("The AI can still reply in another language if you speak it. TTS voice availability depends on Android's installed voices.", fontSize = 11.sp, color = Color.Gray)
+
+                            Text(
+                                "Voice recognition and spoken replies depend on the languages and voices installed on your Android phone.",
+                                fontSize = 11.sp,
+                                color = Color.Gray
+                            )
                         }
                     },
                     confirmButton = {
-                        TextButton(onClick = {
-                            prefs.edit().putString("groq_key", apiKey.trim()).putString("model", model.trim()).putString("language", language).apply()
-                            showSettings = false
-                        }) { Text("Save") }
+                        TextButton(
+                            onClick = {
+                                prefs.edit()
+                                    .putString("groq_key", apiKey.trim())
+                                    .putString("model", model.trim())
+                                    .putString("language", language)
+                                    .apply()
+
+                                showSettings = false
+                            }
+                        ) {
+                            Text("Save")
+                        }
                     },
-                    dismissButton = { TextButton(onClick = { showSettings = false }) { Text("Cancel") } }
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showSettings = false }
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
                 )
             }
         }
