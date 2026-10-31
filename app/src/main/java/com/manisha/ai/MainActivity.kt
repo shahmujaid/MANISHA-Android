@@ -152,9 +152,16 @@ private fun stopManishaVoiceService() {
                     statusCallback = status
                     startListening(locale)
                 },
-                onAsk = { prompt, language, apiKey, model, done ->
-                    askManisha(prompt, language, apiKey, model, done)
-                }
+                onAsk = { prompt, language, apiKey, model, girlfriendMode, done ->
+    askManisha(
+        prompt,
+        language,
+        apiKey,
+        model,
+        girlfriendMode,
+        done
+    )
+}
             )
         }
     }
