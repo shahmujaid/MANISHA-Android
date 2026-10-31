@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private var statusCallback: ((String) -> Unit)? = null
 
     private var voiceServiceActive = false
+    private var startServiceAfterPermission = false
 
 private fun startManishaVoiceService() {
     if (ContextCompat.checkSelfPermission(
@@ -83,6 +84,7 @@ private fun startManishaVoiceService() {
             Manifest.permission.RECORD_AUDIO
         ) != PackageManager.PERMISSION_GRANTED
     ) {
+        startServiceAfterPermission = true
         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         return
     }
@@ -97,6 +99,7 @@ private fun startManishaVoiceService() {
         statusUpdate("Could not start voice service: ${e.message}")
     }
 }
+
 
 private fun stopManishaVoiceService() {
     stopService(Intent(this, WakeWordService::class.java))
@@ -119,14 +122,20 @@ private fun stopManishaVoiceService() {
     }
 
     private val permissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            launchSpeech(pendingLocale)
+    ActivityResultContracts.RequestPermission()
+) { granted ->
+    if (granted) {
+        if (startServiceAfterPermission) {
+            startServiceAfterPermission = false
+            startManishaVoiceService()
         } else {
-            statusUpdate("Microphone permission is needed for voice input.")
+            launchSpeech(pendingLocale)
         }
+    } else {
+        startServiceAfterPermission = false
+        statusUpdate("Microphone permission is needed for voice input.")
     }
+}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
