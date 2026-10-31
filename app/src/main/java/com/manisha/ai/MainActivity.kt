@@ -75,6 +75,35 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     private var recognizedCallback: ((String) -> Unit)? = null
     private var statusCallback: ((String) -> Unit)? = null
 
+    private var voiceServiceActive = false
+
+private fun startManishaVoiceService() {
+    if (ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        return
+    }
+
+    val serviceIntent = Intent(this, WakeWordService::class.java)
+
+    try {
+        ContextCompat.startForegroundService(this, serviceIntent)
+        voiceServiceActive = true
+        statusUpdate("MANISHA background listening started")
+    } catch (e: Exception) {
+        statusUpdate("Could not start voice service: ${e.message}")
+    }
+}
+
+private fun stopManishaVoiceService() {
+    stopService(Intent(this, WakeWordService::class.java))
+    voiceServiceActive = false
+    statusUpdate("MANISHA background listening stopped")
+}
+
     private val speechLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
