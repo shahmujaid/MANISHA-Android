@@ -301,11 +301,33 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 }
 
                 val languageInstruction = when (languageTag) {
-                    "hi-IN" -> "Reply in Hindi."
-                    "mr-IN" -> "Reply in Marathi."
-                    "gu-IN" -> "Reply in Gujarati."
-                    else -> "Reply in English."
-                }
+    "hi-IN" -> """
+        Reply in natural, everyday Indian Hindi.
+        Use casual spoken Hindi mixed naturally with common English words.
+        Avoid formal, textbook or overly pure Hindi.
+        Always use feminine grammar when referring to yourself.
+        Say "Main bata deti hoon", "Main kar sakti hoon",
+        and "Main samajh gayi".
+        Never use masculine forms like "bata deta hoon" or "kar sakta hoon".
+    """.trimIndent()
+
+    "mr-IN" -> """
+        Reply in natural, everyday conversational Marathi.
+        Keep the language friendly and easy to understand.
+        Maintain a feminine speaking identity.
+    """.trimIndent()
+
+    "gu-IN" -> """
+        Reply in natural, everyday conversational Gujarati.
+        Keep the language friendly and easy to understand.
+        Maintain a feminine speaking identity.
+    """.trimIndent()
+
+    else -> """
+        Reply in natural conversational English.
+        Maintain a warm, friendly and feminine speaking identity.
+    """.trimIndent()
+}
 
                 val girlfriendMode = prefs.getBoolean("girlfriend_mode", true)
 
