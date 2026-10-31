@@ -143,8 +143,10 @@ private fun stopManishaVoiceService() {
         tts = TextToSpeech(this, this)
 
         setContent {
-            ManishaScreen(
-                onSpeak = { text, lang -> speak(text, lang) },
+    ManishaScreen(
+        onStartBackground = { startManishaVoiceService() },
+        onStopBackground = { stopManishaVoiceService() },
+        onSpeak = { text, lang -> speak(text, lang) },
                 onListen = { locale, callback, status ->
                     recognizedCallback = callback
                     statusCallback = status
@@ -336,6 +338,8 @@ private fun stopManishaVoiceService() {
 
 @Composable
 fun ManishaScreen(
+    onStartBackground: () -> Unit,
+    onStopBackground: () -> Unit,
     onSpeak: (String, String) -> Unit,
     onListen: (
         locale: String,
@@ -553,6 +557,36 @@ fun ManishaScreen(
                         )
                     }
                 }
+
+                Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(10.dp)
+) {
+    Button(
+        onClick = {
+            onStartBackground()
+            status = "Starting background listening..."
+        },
+        modifier = Modifier.weight(1f),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0xFF087F5B)
+        )
+    ) {
+        Text("START LISTENING", fontSize = 11.sp)
+    }
+
+    OutlinedButton(
+        onClick = {
+            onStopBackground()
+            status = "Background listening stopped"
+        },
+        modifier = Modifier.weight(1f)
+    ) {
+        Text("STOP LISTENING", fontSize = 11.sp)
+    }
+}
+
+Spacer(Modifier.height(12.dp))
 
                 Text(
                     "CONVERSATION",
