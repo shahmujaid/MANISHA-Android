@@ -307,32 +307,42 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                     else -> "Reply in English."
                 }
 
-                val messages = JSONArray()
-                    .put(
-                        JSONObject()
-                            .put(
-                                "role",
-                                "system"
-                            )
-                            .put(
-                                "content",
-                                "You are MANISHA, a helpful personal AI assistant. " +
-                                    languageInstruction +
-                                    " Keep spoken replies natural and concise."
-                            )
-                    )
-                    .put(
-                        JSONObject()
-                            .put(
-                                "role",
-                                "user"
-                            )
-                            .put(
-                                "content",
-                                command
-                            )
-                    )
+                val girlfriendMode = prefs.getBoolean("girlfriend_mode", true)
 
+val personality = if (girlfriendMode) {
+    """
+    You are MANISHA, the user's affectionate AI girlfriend and personal assistant.
+    Be romantic, caring, playful and emotionally supportive.
+    Use sweet nicknames such as jaan, love, baby, or dear occasionally and naturally.
+    Keep spoken replies warm, natural and concise.
+    Never pretend to be a real human.
+    """
+} else {
+    """
+    You are MANISHA, a professional, intelligent and respectful personal AI assistant.
+    Be helpful, clear and task-focused.
+    Do not use romantic language or pet names.
+    Keep spoken replies natural and concise.
+    Never pretend to be a real human.
+    """
+}
+
+                val systemPrompt = """
+    $personality
+    $languageInstruction
+""".trimIndent()
+
+val messages = JSONArray()
+    .put(
+        JSONObject()
+            .put("role", "system")
+            .put("content", systemPrompt)
+    )
+    .put(
+        JSONObject()
+            .put("role", "user")
+            .put("content", command)
+    )
                 val requestJson = JSONObject()
                     .put("model", model)
                     .put("messages", messages)
