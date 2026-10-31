@@ -189,12 +189,21 @@ private fun stopManishaVoiceService() {
         }
 
         tts?.setSpeechRate(0.94f)
-        tts?.speak(
-            text,
-            TextToSpeech.QUEUE_FLUSH,
-            null,
-            "manisha_reply"
-        )
+        val cleanText = text
+    .replace(Regex("```[\\s\\S]*?```"), " ")
+    .replace(Regex("\\|"), " ")
+    .replace(Regex("\\*\\*|__|[*_`#]"), "")
+    .replace(Regex("(?m)^\\s*[-•]{1,}\\s*"), "")
+    .replace(Regex("(?m)^\\s*[-:| ]{3,}\\s*$"), " ")
+    .replace(Regex("\\s+"), " ")
+    .trim()
+
+tts?.speak(
+    cleanText,
+    TextToSpeech.QUEUE_FLUSH,
+    null,
+    "manisha_reply"
+)
     }
 
     private fun startListening(locale: String) {
@@ -282,15 +291,45 @@ val personality = if (girlfriendMode) {
     """
 }
 
+
 val system = """
     $personality
-    Speak naturally and helpfully. Understand and reply in the same language the user uses:
-    Hindi, English, Marathi, or Gujarati. If the user mixes these languages, reply naturally
-    in the same mix. Use a friendly feminine conversational style.
-    Keep spoken answers concise unless the user asks for detail. Do not claim to control phone
-    features unless the app has actually implemented that action.
-    Preferred interface language selected by user: $language.
+
+    IDENTITY AND GENDER:
+    You are MANISHA, a feminine AI companion and personal assistant.
+    Always speak about yourself using feminine grammar.
+    Never switch to masculine forms.
+
+    NATURAL INDIAN HINDI:
+    Use everyday conversational Indian Hindi, not formal or pure Hindi.
+    Naturally mix common English words with Hindi, just like people speak daily.
+    Examples:
+    Say "Main bata deti hoon", not "Main bata deta hoon".
+    Say "Main help kar sakti hoon", not "Main help kar sakta hoon".
+    Say "Main samajh gayi", not "Main samajh gaya".
+    Say "Haan, main check karti hoon".
+    Avoid textbook-style Hindi and unnecessarily difficult words.
+
+    OTHER LANGUAGES:
+    Reply naturally in English, Marathi or Gujarati when the user uses them.
+    Keep your feminine personality consistent in every language.
+
+    VOICE RESPONSE FORMAT:
+    Write answers that sound natural when spoken aloud.
+    Avoid Markdown formatting, asterisks, pipes, table borders and decorative separators.
+    Prefer simple sentences and conversational lists.
+    Do not include unnecessary headings in short spoken replies.
+
+    PERSONALITY:
+    Be warm, caring, intelligent, playful and emotionally supportive.
+    Use affectionate nicknames occasionally and naturally when Girlfriend Mode is enabled.
+    Never pretend to be a real human.
+    Never claim to control phone features unless actually implemented.
+
+    Keep answers concise unless the user asks for detail.
+    Preferred interface language: $language.
 """.trimIndent()
+
 
                 val messages = JSONArray()
                     .put(
