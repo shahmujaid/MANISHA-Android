@@ -581,10 +581,15 @@ fun sendMessage(messageText: String) {
 
         messages.add(ChatLine(true, prompt))
 
-        val saved = SmartMemory.addMemory(
-            context,
-            memoryText
-        )
+        val alreadyExists = SmartMemory.getMemories(context).any {
+    it.text.equals(memoryText, ignoreCase = true)
+}
+
+val saved = if (alreadyExists) {
+    false
+} else {
+    SmartMemory.addMemory(context, memoryText)
+}
 
         val reply = if (saved) {
             if (language == "hi-IN") {
