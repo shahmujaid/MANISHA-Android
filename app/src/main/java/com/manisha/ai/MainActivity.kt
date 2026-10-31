@@ -161,6 +161,9 @@ private fun stopManishaVoiceService() {
         conversationHistory,
         done
     )
+},
+onOpenApp = { appName ->
+    openInstalledApp(appName)
 }
             )
         }
@@ -255,6 +258,40 @@ tts?.speak(
         statusCallback?.invoke(message)
     }
 
+private fun openInstalledApp(appName: String): String {
+    val launchIntent = Intent(Intent.ACTION_MAIN).apply {
+        addCategory(Intent.CATEGORY_LAUNCHER)
+    }
+
+    val apps = packageManager.queryIntentActivities(launchIntent, 0)
+
+    val match = apps.firstOrNull {
+        it.loadLabel(packageManager).toString()
+            .equals(appName.trim(), ignoreCase = true)
+    } ?: apps.firstOrNull {
+        it.loadLabel(packageManager).toString()
+            .contains(appName.trim(), ignoreCase = true)
+    }
+
+    if (match == null) {
+        return "I couldn't find the app $appName on your phone."
+    }
+
+    val packageName = match.activityInfo.packageName
+    val appLaunchIntent = packageManager.getLaunchIntentForPackage(packageName)
+
+    if (appLaunchIntent == null) {
+        return "I couldn't open ${match.loadLabel(packageManager)}."
+    }
+
+    return try {
+        startActivity(appLaunchIntent)
+        "Opening ${match.loadLabel(packageManager)}."
+    } catch (e: Exception) {
+        "I couldn't open this app."
+    }
+}
+    
     
 private fun askManisha(
     prompt: String,
@@ -440,7 +477,7 @@ fun ManishaScreen(
         onText: (String) -> Unit,
         onStatus: (String) -> Unit
     ) -> Unit,
-    onAsk: (
+ onAsk: (
     String,
     String,
     String,
@@ -448,7 +485,8 @@ fun ManishaScreen(
     Boolean,
     List<ChatLine>,
     (Result<String>) -> Unit
-) -> Unit
+) -> Unit,
+onOpenApp: (String) -> String
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
