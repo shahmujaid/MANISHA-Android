@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -13,78 +14,119 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.Manifest
+import org.json.JSONArray
+import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.util.Locale
+import java.util.concurrent.TimeUnit
 
-class WakeWordService : Service() {
+class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
     companion object {
-        const val ACTION_STATUS = "com.manisha.ai.WAKE_STATUS"
-        const val ACTION_COMMAND = "com.manisha.ai.WAKE_COMMAND"
-        const val EXTRA_TEXT = "recognized_text"
+        const val ACTION_STATUS = "com.manisha.ai.STATUS"
+        const val ACTION_COMMAND = "com.manisha.ai.COMMAND"
+        const val ACTION_REPLY = "com.manisha.ai.REPLY"
+        const val ACTION_STOP = "com.manisha.ai.STOP"
 
-        const val CHANNEL_ID = "manisha_wake_channel"
-        const val NOTIFICATION_ID = 101
+        const val EXTRA_TEXT = "text"
+
+        private const val CHANNEL_ID = "manisha_voice_channel"
+        private const val NOTIFICATION_ID = 7001
     }
 
     private val handler = Handler(Looper.getMainLooper())
+
     private var recognizer: SpeechRecognizer? = null
-    private var listening = false
+    private var tts: TextToSpeech? = null
+
+    private var ttsReady = false
     private var waitingForCommand = false
+    private var isProcessing = false
+    private var pendingReply: String? = null
+    private var languageTag = "en-IN"
+
+    private val httpClient = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(45, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
+        .build()
 
     override fun onCreate() {
         super.onCreate()
+
         createNotificationChannel()
-        startForeground(
-            NOTIFICATION_ID,
-            createNotification()
+
+        val notification = Notification.Builder(this, CHANNEL_ID)
+            .setContentTitle("MANISHA AI is active")
+            .setContentText("Listening for MANISHA")
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setOngoing(true)
+            .build()
+
+        startForeground(NOTIFICATION_ID, notification)
+
+        val prefs = getSharedPreferences("manisha_settings", MODE_PRIVATE)
+        languageTag = getLanguageTag(
+            prefs.getString("language", "English") ?: "English"
         )
-        startRecognition()
-    }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "MANISHA Voice Assistant",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            channel.description = "MANISHA background voice listening"
+        tts = TextToSpeech(this, this)
 
-            getSystemService(NotificationManager::class.java)
-                .createNotificationChannel(channel)
-        }
-    }
-
-    private fun createNotification(): Notification {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("MANISHA is active")
-                .setContentText("Listening for the wake word MANISHA")
-                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-                .setOngoing(true)
-                .build()
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-                .setContentTitle("MANISHA is active")
-                .setContentText("Listening for MANISHA")
-                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-                .setOngoing(true)
-                .build()
-        }
-    }
-
-    private fun updateStatus(message: String) {
-        sendBroadcast(
-            Intent(ACTION_STATUS).setPackage(packageName)
-                .putExtra(EXTRA_TEXT, message)
-        )
-    }
-
-    private fun startRecognition() {
-        if (listening) return
+        broadcastStatus("MANISHA voice service starting")
 
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            updateStatus("Speech recognition is unavailable.")
+            broadcastStatus("Speech recognition is not available")
+            stopSelf()
+            return
+        }
+
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            broadcastStatus("Microphone permission is required")
+            stopSelf()
+            return
+        }
+
+        startListening()
+    }
+
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int
+    ): Int {
+
+        if (intent?.action == ACTION_STOP) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        return START_NOT_STICKY
+    }
+
+    private fun getLanguageTag(value: String): String {
+        return when (value.lowercase()) {
+            "hindi", "hi", "hi-in" -> "hi-IN"
+            "marathi", "mr", "mr-in" -> "mr-IN"
+            "gujarati", "gu", "gu-in" -> "gu-IN"
+            else -> "en-IN"
+        }
+    }
+
+    private fun startListening() {
+        if (isProcessing) return
+
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            broadcastStatus("Microphone permission missing")
             return
         }
 
@@ -94,143 +136,389 @@ class WakeWordService : Service() {
 
                 recognizer?.setRecognitionListener(
                     object : RecognitionListener {
+
                         override fun onReadyForSpeech(params: android.os.Bundle?) {
-                            listening = true
+                            broadcastStatus(
+                                if (waitingForCommand) {
+                                    "Listening for your command"
+                                } else {
+                                    "Say MANISHA to activate"
+                                }
+                            )
                         }
 
-                        override fun onBeginningOfSpeech() {}
+                        override fun onBeginningOfSpeech() {
+                        }
 
-                        override fun onRmsChanged(rmsdB: Float) {}
+                        override fun onRmsChanged(rmsdB: Float) {
+                        }
 
-                        override fun onBufferReceived(buffer: ByteArray?) {}
+                        override fun onBufferReceived(buffer: ByteArray?) {
+                        }
 
                         override fun onEndOfSpeech() {
-                            listening = false
                         }
 
                         override fun onError(error: Int) {
-                            listening = false
-                            scheduleRecognition()
+                            if (!isProcessing) {
+                                handler.postDelayed({
+                                    startListening()
+                                }, 1000)
+                            }
                         }
 
                         override fun onResults(results: android.os.Bundle?) {
-                            listening = false
+                            val matches = results?.getStringArrayList(
+                                SpeechRecognizer.RESULTS_RECOGNITION
+                            )
 
-                            val spoken = results
-                                ?.getStringArrayList(
-                                    SpeechRecognizer.RESULTS_RECOGNITION
-                                )
-                                ?.firstOrNull()
-                                .orEmpty()
+                            val spoken = matches?.firstOrNull()?.trim().orEmpty()
 
-                            handleSpeech(spoken)
+                            if (spoken.isNotBlank()) {
+                                processRecognizedSpeech(spoken)
+                            } else if (!isProcessing) {
+                                handler.postDelayed({
+                                    startListening()
+                                }, 700)
+                            }
                         }
 
                         override fun onPartialResults(
                             partialResults: android.os.Bundle?
-                        ) {}
+                        ) {
+                        }
 
                         override fun onEvent(
                             eventType: Int,
                             params: android.os.Bundle?
-                        ) {}
+                        ) {
+                        }
                     }
                 )
             }
 
-            val intent = Intent(
+            val speechIntent = Intent(
                 RecognizerIntent.ACTION_RECOGNIZE_SPEECH
             ).apply {
                 putExtra(
                     RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                     RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
                 )
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
-                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE,
+                    languageTag
+                )
+                putExtra(
+                    RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
+                    languageTag
+                )
                 putExtra(
                     RecognizerIntent.EXTRA_PARTIAL_RESULTS,
                     false
                 )
+                putExtra(
+                    RecognizerIntent.EXTRA_MAX_RESULTS,
+                    1
+                )
             }
 
-            recognizer?.startListening(intent)
-            listening = true
+            recognizer?.startListening(speechIntent)
 
-        } catch (_: Exception) {
-            listening = false
-            scheduleRecognition()
+        } catch (e: Exception) {
+            broadcastStatus("Could not start listening")
+            handler.postDelayed({ startListening() }, 2000)
         }
     }
 
-    private fun handleSpeech(spoken: String) {
-        val text = spoken.trim()
+    private fun processRecognizedSpeech(spoken: String) {
 
-        if (text.isBlank()) {
-            scheduleRecognition()
+        if (isProcessing) return
+
+        val wakeWord = Regex(
+            "\\bmanisha\\b",
+            RegexOption.IGNORE_CASE
+        )
+
+        if (waitingForCommand) {
+            waitingForCommand = false
+            sendCommandToGroq(spoken)
             return
         }
 
-        if (!waitingForCommand) {
-            val normalized = text.lowercase()
-            val wakeIndex = normalized.indexOf("manisha")
+        val match = wakeWord.find(spoken)
 
-            if (wakeIndex >= 0) {
-                val command = text
-                    .substring(wakeIndex + "manisha".length)
-                    .trim()
+        if (match != null) {
+            val command = spoken
+                .substring(match.range.last + 1)
+                .trim()
+                .trim(',', '.', '!', '?')
 
-                waitingForCommand = true
-                updateStatus("MANISHA activated. Listening for your command.")
-
-                if (command.isNotBlank()) {
-                    sendCommand(command)
-                } else {
-                    scheduleRecognition()
-                }
+            if (command.isNotBlank()) {
+                sendCommandToGroq(command)
             } else {
-                scheduleRecognition()
+                waitingForCommand = true
+                broadcastStatus("MANISHA activated. Speak your command.")
+                handler.postDelayed({
+                    startListening()
+                }, 500)
             }
         } else {
-            sendCommand(text)
+            handler.postDelayed({
+                startListening()
+            }, 500)
         }
     }
 
-    private fun sendCommand(command: String) {
-        waitingForCommand = false
+    private fun sendCommandToGroq(command: String) {
 
-        sendBroadcast(
-            Intent(ACTION_COMMAND).setPackage(packageName)
-                .putExtra(EXTRA_TEXT, command)
-        )
+        isProcessing = true
 
-        updateStatus("Command received: $command")
-        scheduleRecognition()
-    }
+        broadcastStatus("MANISHA is thinking")
 
-    private fun scheduleRecognition() {
-        listening = false
-        handler.postDelayed({
-            if (recognizer != null || !isDestroyed) {
-                startRecognition()
+        val userIntent = Intent(ACTION_COMMAND).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_TEXT, command)
+        }
+        sendBroadcast(userIntent)
+
+        Thread {
+
+            try {
+                val prefs = getSharedPreferences(
+                    "manisha_settings",
+                    MODE_PRIVATE
+                )
+
+                val apiKey = prefs.getString("groq_key", "").orEmpty()
+
+                val model = prefs.getString(
+                    "model",
+                    "openai/gpt-oss-20b"
+                ) ?: "openai/gpt-oss-20b"
+
+                if (apiKey.isBlank()) {
+                    throw Exception("Groq API key is missing in MANISHA settings")
+                }
+
+                val languageInstruction = when (languageTag) {
+                    "hi-IN" -> "Reply in Hindi."
+                    "mr-IN" -> "Reply in Marathi."
+                    "gu-IN" -> "Reply in Gujarati."
+                    else -> "Reply in English."
+                }
+
+                val messages = JSONArray()
+                    .put(
+                        JSONObject()
+                            .put(
+                                "role",
+                                "system"
+                            )
+                            .put(
+                                "content",
+                                "You are MANISHA, a helpful personal AI assistant. " +
+                                    languageInstruction +
+                                    " Keep spoken replies natural and concise."
+                            )
+                    )
+                    .put(
+                        JSONObject()
+                            .put(
+                                "role",
+                                "user"
+                            )
+                            .put(
+                                "content",
+                                command
+                            )
+                    )
+
+                val requestJson = JSONObject()
+                    .put("model", model)
+                    .put("messages", messages)
+                    .put("temperature", 0.7)
+                    .put("max_tokens", 700)
+
+                val body = requestJson.toString().toRequestBody(
+                    "application/json; charset=utf-8".toMediaType()
+                )
+
+                val request = Request.Builder()
+                    .url("https://api.groq.com/openai/v1/chat/completions")
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .addHeader("Content-Type", "application/json")
+                    .post(body)
+                    .build()
+
+                httpClient.newCall(request).execute().use { response ->
+
+                    val responseBody = response.body?.string().orEmpty()
+
+                    if (!response.isSuccessful) {
+                        throw Exception("Groq request failed: HTTP ${response.code}")
+                    }
+
+                    val json = JSONObject(responseBody)
+
+                    val reply = json
+                        .getJSONArray("choices")
+                        .getJSONObject(0)
+                        .getJSONObject("message")
+                        .getString("content")
+                        .trim()
+
+                    handler.post {
+                        handleReply(reply)
+                    }
+                }
+
+            } catch (e: Exception) {
+
+                handler.post {
+                    handleReply(
+                        "Sorry, I could not complete that request. Please try again."
+                    )
+                    broadcastStatus(e.message ?: "AI request failed")
+                }
             }
-        }, 900)
+
+        }.start()
     }
 
-    override fun onStartCommand(
-        intent: Intent?,
-        flags: Int,
-        startId: Int
-    ): Int {
-        return START_NOT_STICKY
+    private fun handleReply(reply: String) {
+
+        val replyIntent = Intent(ACTION_REPLY).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_TEXT, reply)
+        }
+        sendBroadcast(replyIntent)
+
+        if (ttsReady && tts != null) {
+            speakReply(reply)
+        } else {
+            pendingReply = reply
+        }
+    }
+
+    private fun speakReply(reply: String) {
+
+        try {
+            tts?.speak(
+                reply,
+                TextToSpeech.QUEUE_FLUSH,
+                null,
+                "manisha_reply"
+            )
+        } catch (e: Exception) {
+            isProcessing = false
+            handler.postDelayed({ startListening() }, 1000)
+        }
+    }
+
+    override fun onInit(status: Int) {
+
+        if (status == TextToSpeech.SUCCESS) {
+
+            ttsReady = true
+
+            val result = tts?.setLanguage(
+                Locale.forLanguageTag(languageTag)
+            )
+
+            if (result == TextToSpeech.LANG_MISSING_DATA ||
+                result == TextToSpeech.LANG_NOT_SUPPORTED
+            ) {
+                tts?.language = Locale("en", "IN")
+            }
+
+            tts?.setOnUtteranceProgressListener(
+                object : UtteranceProgressListener() {
+
+                    override fun onStart(utteranceId: String?) {
+                    }
+
+                    override fun onDone(utteranceId: String?) {
+                        handler.post {
+                            isProcessing = false
+                            broadcastStatus("Say MANISHA to speak again")
+                            handler.postDelayed({
+                                startListening()
+                            }, 700)
+                        }
+                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(utteranceId: String?) {
+                        handler.post {
+                            isProcessing = false
+                            handler.postDelayed({
+                                startListening()
+                            }, 1000)
+                        }
+                    }
+                }
+            )
+
+            pendingReply?.let {
+                val reply = it
+                pendingReply = null
+                speakReply(reply)
+            }
+        }
+    }
+
+    private fun broadcastStatus(message: String) {
+
+        val intent = Intent(ACTION_STATUS).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_TEXT, message)
+        }
+
+        sendBroadcast(intent)
+    }
+
+    private fun createNotificationChannel() {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "MANISHA Voice Assistant",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Voice assistant listening notification"
+            }
+
+            val manager = getSystemService(
+                NotificationManager::class.java
+            )
+
+            manager.createNotificationChannel(channel)
+        }
     }
 
     override fun onDestroy() {
+
         handler.removeCallbacksAndMessages(null)
-        recognizer?.destroy()
-        recognizer = null
-        listening = false
+
+        try {
+            recognizer?.cancel()
+            recognizer?.destroy()
+            recognizer = null
+
+            tts?.stop()
+            tts?.shutdown()
+            tts = null
+
+        } catch (_: Exception) {
+        }
+
+        broadcastStatus("MANISHA voice service stopped")
+
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
 }
