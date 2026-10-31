@@ -663,12 +663,12 @@ val saved = if (alreadyExists) {
     }
 
     // Handle app-opening commands
-val lowerPrompt = prompt.lowercase().trim()
+val appCommandText = prompt.lowercase().trim()
 
 val appPrefixes = listOf("open ", "launch ", "start ")
 
 val appCommand = appPrefixes.firstOrNull {
-    lowerPrompt.startsWith(it)
+    appCommandText.startsWith(it)
 }
 
 if (appCommand != null) {
