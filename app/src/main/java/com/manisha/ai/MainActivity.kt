@@ -502,13 +502,11 @@ messages.put(
     callback(Result.success(answer))
 }
             }
-        } catch (e: Exception) {
-        callback(Result.failure(e))
-    }
-}
-    }.start()
-}
-
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+            }.start()
+        }
 
     override fun onDestroy() {
         tts?.stop()
