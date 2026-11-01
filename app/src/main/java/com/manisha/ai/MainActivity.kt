@@ -550,8 +550,8 @@ DisposableEffect(context) {
             when (intent?.action) {
 
                 WakeWordService.ACTION_COMMAND -> {
-                    messages.add(ChatLine(true, text))
-                }
+    sendMessage(text)
+}
 
                 WakeWordService.ACTION_REPLY -> {
                     messages.add(ChatLine(false, text))
