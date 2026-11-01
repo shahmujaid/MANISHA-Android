@@ -27,7 +27,7 @@
 
     <application
         android:allowBackup="false"
-        android:label="MANISHA AI"
+        android:label="MIRA AI"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:usesCleartextTraffic="false">
 
@@ -43,7 +43,7 @@
 
         </activity>
 
-        <!-- MANISHA background listening service -->
+        <!-- MIRA background listening service -->
         <service
             android:name=".WakeWordService"
             android:enabled="true"
