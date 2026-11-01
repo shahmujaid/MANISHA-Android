@@ -218,21 +218,41 @@ onOpenApp = { appName ->
 
     private fun speak(text: String, language: String) {
         if (!ttsReady) {
-            statusUpdate("Text-to-speech is still starting. Please try again.")
-            return
+    statusUpdate("Text-to-speech is still starting. Please try again.")
+
+    if (voiceServiceActive) {
+        val resumeIntent = Intent(
+            this,
+            WakeWordService::class.java
+        ).apply {
+            action = WakeWordService.ACTION_RESUME
         }
+        startService(resumeIntent)
+    }
+    return
+}
 
         val locale = Locale.forLanguageTag(language)
         val result = tts?.setLanguage(locale)
 
         if (result == TextToSpeech.LANG_MISSING_DATA ||
-            result == TextToSpeech.LANG_NOT_SUPPORTED
-        ) {
-            statusUpdate(
-                "This language voice is not installed. Install it in Android text-to-speech settings."
-            )
-            return
+    result == TextToSpeech.LANG_NOT_SUPPORTED
+) {
+    statusUpdate(
+        "This language voice is not installed. Install it in Android text-to-speech settings."
+    )
+
+    if (voiceServiceActive) {
+        val resumeIntent = Intent(
+            this,
+            WakeWordService::class.java
+        ).apply {
+            action = WakeWordService.ACTION_RESUME
         }
+        startService(resumeIntent)
+    }
+    return
+}
 
         tts?.setSpeechRate(0.94f)
         val cleanText = text
