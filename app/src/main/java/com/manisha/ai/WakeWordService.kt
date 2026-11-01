@@ -287,15 +287,19 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
     private fun sendCommandToGroq(command: String) {
 
-        isProcessing = true
+    if (isProcessing) return
 
-        broadcastStatus("MIRA is thinking")
+    isProcessing = true
 
-        val userIntent = Intent(ACTION_COMMAND).apply {
-            setPackage(packageName)
-            putExtra(EXTRA_TEXT, command)
-        }
-        sendBroadcast(userIntent)
+    broadcastStatus("MIRA is processing your command")
+
+    val userIntent = Intent(ACTION_COMMAND).apply {
+        setPackage(packageName)
+        putExtra(EXTRA_TEXT, command)
+    }
+
+    sendBroadcast(userIntent)
+}
 
         Thread {
 
