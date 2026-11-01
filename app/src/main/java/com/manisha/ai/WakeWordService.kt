@@ -29,10 +29,10 @@ import java.util.concurrent.TimeUnit
 class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
     companion object {
-        const val ACTION_STATUS = "com.MIRA.ai.STATUS"
-        const val ACTION_COMMAND = "com.MIRA.ai.COMMAND"
-        const val ACTION_REPLY = "com.MIRA.ai.REPLY"
-        const val ACTION_STOP = "com.MIRA.ai.STOP"
+        const val ACTION_STATUS = "com.manisha.ai.STATUS"
+        const val ACTION_COMMAND = "com.manisha.ai.COMMAND"
+        const val ACTION_REPLY = "com.manisha.ai.REPLY"
+        const val ACTION_STOP = "com.manisha.ai.STOP"
 
         const val EXTRA_TEXT = "text"
 
@@ -71,7 +71,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
         startForeground(NOTIFICATION_ID, notification)
 
-        val prefs = getSharedPreferences("MIRA_settings", MODE_PRIVATE)
+        val prefs = getSharedPreferences("manisha_settings", MODE_PRIVATE)
         languageTag = getLanguageTag(
             prefs.getString("language", "English") ?: "English"
         )
@@ -285,7 +285,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
             try {
                 val prefs = getSharedPreferences(
-                    "MIRA_settings",
+                    "manisha_settings",
                     MODE_PRIVATE
                 )
 
