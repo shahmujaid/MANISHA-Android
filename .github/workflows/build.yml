@@ -3,7 +3,7 @@ name: Build MANISHA Android APK
 
 on:
   push:
-    branches: ["main", "master"]
+    branches: ["main", "master", "mira-2.0-ui"]
   workflow_dispatch:
 
 permissions:
