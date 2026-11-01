@@ -532,63 +532,7 @@ onOpenApp: (String) -> String
         )
     }
 
-    // Receive messages and status from the background voice service.
-DisposableEffect(context) {
 
-    val voiceReceiver = object : BroadcastReceiver() {
-
-        override fun onReceive(
-            context: Context?,
-            intent: Intent?
-        ) {
-            val text = intent?.getStringExtra(
-                WakeWordService.EXTRA_TEXT
-            ).orEmpty()
-
-            if (text.isBlank()) return
-
-            when (intent?.action) {
-
-                WakeWordService.ACTION_COMMAND -> {
-    sendMessage(text)
-}
-
-                WakeWordService.ACTION_REPLY -> {
-                    messages.add(ChatLine(false, text))
-                    status = "Here for you"
-                }
-
-                WakeWordService.ACTION_STATUS -> {
-                    status = text
-                }
-            }
-        }
-    }
-
-    val filter = IntentFilter().apply {
-        addAction(WakeWordService.ACTION_COMMAND)
-        addAction(WakeWordService.ACTION_REPLY)
-        addAction(WakeWordService.ACTION_STATUS)
-    }
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        context.registerReceiver(
-            voiceReceiver,
-            filter,
-            Context.RECEIVER_NOT_EXPORTED
-        )
-    } else {
-        @Suppress("DEPRECATION")
-        context.registerReceiver(voiceReceiver, filter)
-    }
-
-    onDispose {
-        try {
-            context.unregisterReceiver(voiceReceiver)
-        } catch (_: Exception) {
-        }
-    }
-}
 
     val scope = rememberCoroutineScope()
 
@@ -713,6 +657,66 @@ if (apiKey.isBlank()) {
     }
 }
 
+
+// Receive messages and status from the background voice service.
+
+
+    DisposableEffect(context) {
+    
+    val voiceReceiver = object : BroadcastReceiver() {
+
+        override fun onReceive(
+            context: Context?,
+            intent: Intent?
+        ) {
+            val text = intent?.getStringExtra(
+                WakeWordService.EXTRA_TEXT
+            ).orEmpty()
+
+            if (text.isBlank()) return
+
+            when (intent?.action) {
+
+                WakeWordService.ACTION_COMMAND -> {
+    sendMessage(text)
+}
+
+                WakeWordService.ACTION_REPLY -> {
+                    messages.add(ChatLine(false, text))
+                    status = "Here for you"
+                }
+
+                WakeWordService.ACTION_STATUS -> {
+                    status = text
+                }
+            }
+        }
+    }
+
+    val filter = IntentFilter().apply {
+        addAction(WakeWordService.ACTION_COMMAND)
+        addAction(WakeWordService.ACTION_REPLY)
+        addAction(WakeWordService.ACTION_STATUS)
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        context.registerReceiver(
+            voiceReceiver,
+            filter,
+            Context.RECEIVER_NOT_EXPORTED
+        )
+    } else {
+        @Suppress("DEPRECATION")
+        context.registerReceiver(voiceReceiver, filter)
+    }
+
+    onDispose {
+        try {
+            context.unregisterReceiver(voiceReceiver)
+        } catch (_: Exception) {
+        }
+    }
+}
 
     MaterialTheme(
         colorScheme = darkColorScheme(
