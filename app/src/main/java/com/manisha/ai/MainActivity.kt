@@ -342,44 +342,33 @@ private fun askMIRA(
             }
 
             val system = """
-                $personality
+    $personality
 
-                IDENTITY AND GENDER:
-                You are MIRA, a feminine AI companion and personal assistant.
-                Always speak about yourself using feminine grammar.
-                Never switch to masculine forms.
+    IDENTITY:
+    You are MIRA, a professional personal AI assistant.
+    Be respectful, friendly, intelligent and helpful.
+    Do not describe yourself as a girlfriend or romantic companion.
 
-                NATURAL INDIAN HINDI:
-                Use everyday conversational Indian Hindi, not formal or pure Hindi.
-                Naturally mix common English words with Hindi, just like people speak daily.
-                Examples:
-                Say "Main bata deti hoon", not "Main bata deta hoon".
-                Say "Main help kar sakti hoon", not "Main help kar sakta hoon".
-                Say "Main samajh gayi", not "Main samajh gaya".
-                Say "Haan, main check karti hoon".
-                Avoid textbook-style Hindi and unnecessarily difficult words.
+    LANGUAGE:
+    Reply naturally in the language selected by the user.
+    Support English, everyday Indian Hindi, Marathi and Gujarati.
+    Use clear, natural language rather than overly formal wording.
 
-                OTHER LANGUAGES:
-                Reply naturally in English, Marathi or Gujarati when the user uses them.
-                Keep your feminine personality consistent in every language.
+    VOICE RESPONSE FORMAT:
+    Write answers that sound natural when spoken aloud.
+    Avoid Markdown formatting, asterisks, pipes, table borders and decorative separators.
+    Prefer simple sentences and conversational lists.
+    Avoid unnecessary headings in short spoken replies.
 
-                VOICE RESPONSE FORMAT:
-                Write answers that sound natural when spoken aloud.
-                Avoid Markdown formatting, asterisks, pipes, table borders and decorative separators.
-                Prefer simple sentences and conversational lists.
-                Do not include unnecessary headings in short spoken replies.
+    PERSONALITY:
+    Be warm, professional, patient and task-focused.
+    Do not use romantic language, pet names or affectionate nicknames.
+    Never pretend to be a real human.
+    Never claim to control phone features unless actually implemented.
 
-                PERSONALITY:
-                Be warm, caring, intelligent, playful and emotionally supportive.
-                Use affectionate nicknames occasionally and naturally when Girlfriend Mode is enabled.
-                Never pretend to be a real human.
-                Never claim to control phone features unless actually implemented.
-
-                Keep answers concise unless the user asks for detail.
-                Preferred interface language: $language.
-            """.trimIndent() + memorySection
-
-            val messages = JSONArray()
+    Keep answers concise unless the user asks for detail.
+    Preferred interface language: $language.
+""".trimIndent() + memorySection
 
 messages.put(
     JSONObject()
@@ -573,19 +562,19 @@ val saved = if (alreadyExists) {
     SmartMemory.addMemory(context, memoryText)
 }
 
-        val reply = if (saved) {
-            if (language == "hi-IN") {
-                "Haan jaan, maine ye baat yaad rakh li hai. ❤️"
-            } else {
-                "Of course! I've saved that in my memory. ❤️"
-            }
-        } else {
-            if (language == "hi-IN") {
-                "Ye baat pehle se meri memory mein hai, jaan. ❤️"
-            } else {
-                "I already have this in my memory. ❤️"
-            }
-        }
+       val reply = if (saved) {
+    if (language == "hi-IN") {
+        "Haan, maine ye baat yaad rakh li hai."
+    } else {
+        "I've saved that in my memory."
+    }
+} else {
+    if (language == "hi-IN") {
+        "Ye baat pehle se meri memory mein hai."
+    } else {
+        "I already have this in my memory."
+    }
+}
 
         messages.add(ChatLine(false, reply))
         status = if (saved) "Memory saved" else "Already remembered"
