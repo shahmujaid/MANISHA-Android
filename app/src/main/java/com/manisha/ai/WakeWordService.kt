@@ -29,14 +29,14 @@ import java.util.concurrent.TimeUnit
 class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
     companion object {
-        const val ACTION_STATUS = "com.manisha.ai.STATUS"
-        const val ACTION_COMMAND = "com.manisha.ai.COMMAND"
-        const val ACTION_REPLY = "com.manisha.ai.REPLY"
-        const val ACTION_STOP = "com.manisha.ai.STOP"
+        const val ACTION_STATUS = "com.MIRA.ai.STATUS"
+        const val ACTION_COMMAND = "com.MIRA.ai.COMMAND"
+        const val ACTION_REPLY = "com.MIRA.ai.REPLY"
+        const val ACTION_STOP = "com.MIRA.ai.STOP"
 
         const val EXTRA_TEXT = "text"
 
-        private const val CHANNEL_ID = "manisha_voice_channel"
+        private const val CHANNEL_ID = "MIRA_voice_channel"
         private const val NOTIFICATION_ID = 7001
     }
 
@@ -63,22 +63,22 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         createNotificationChannel()
 
         val notification = Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("MANISHA AI is active")
-            .setContentText("Listening for MANISHA")
+            .setContentTitle("MIRA AI is active")
+            .setContentText("Listening for MIRA")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
             .build()
 
         startForeground(NOTIFICATION_ID, notification)
 
-        val prefs = getSharedPreferences("manisha_settings", MODE_PRIVATE)
+        val prefs = getSharedPreferences("MIRA_settings", MODE_PRIVATE)
         languageTag = getLanguageTag(
             prefs.getString("language", "English") ?: "English"
         )
 
         tts = TextToSpeech(this, this)
 
-        broadcastStatus("MANISHA voice service starting")
+        broadcastStatus("MIRA voice service starting")
 
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             broadcastStatus("Speech recognition is not available")
@@ -142,7 +142,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                                 if (waitingForCommand) {
                                     "Listening for your command"
                                 } else {
-                                    "Say MANISHA to activate"
+                                    "Say MIRA to activate"
                                 }
                             )
                         }
@@ -235,9 +235,9 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         if (isProcessing) return
 
         val wakeWord = Regex(
-            "\\bmanisha\\b",
-            RegexOption.IGNORE_CASE
-        )
+    "\\b(m+i+r+a+|m+e+e+r+a+|m+y+r+a+)\\b",
+    RegexOption.IGNORE_CASE
+)
 
         if (waitingForCommand) {
             waitingForCommand = false
@@ -257,7 +257,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 sendCommandToGroq(command)
             } else {
                 waitingForCommand = true
-                broadcastStatus("MANISHA activated. Speak your command.")
+                broadcastStatus("MIRA activated. Speak your command.")
                 handler.postDelayed({
                     startListening()
                 }, 500)
@@ -273,7 +273,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
         isProcessing = true
 
-        broadcastStatus("MANISHA is thinking")
+        broadcastStatus("MIRA is thinking")
 
         val userIntent = Intent(ACTION_COMMAND).apply {
             setPackage(packageName)
@@ -285,7 +285,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
             try {
                 val prefs = getSharedPreferences(
-                    "manisha_settings",
+                    "MIRA_settings",
                     MODE_PRIVATE
                 )
 
@@ -297,7 +297,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 ) ?: "openai/gpt-oss-20b"
 
                 if (apiKey.isBlank()) {
-                    throw Exception("Groq API key is missing in MANISHA settings")
+                    throw Exception("Groq API key is missing in MIRA settings")
                 }
 
                 val languageInstruction = when (languageTag) {
@@ -333,7 +333,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
 val personality = if (girlfriendMode) {
     """
-    You are MANISHA, the user's affectionate AI girlfriend and personal assistant.
+    You are MIRA, the user's affectionate AI girlfriend and personal assistant.
     Be romantic, caring, playful and emotionally supportive.
     Use sweet nicknames such as jaan, love, baby, or dear occasionally and naturally.
     Keep spoken replies warm, natural and concise.
@@ -341,7 +341,7 @@ val personality = if (girlfriendMode) {
     """
 } else {
     """
-    You are MANISHA, a professional, intelligent and respectful personal AI assistant.
+    You are MIRA, a professional, intelligent and respectful personal AI assistant.
     Be helpful, clear and task-focused.
     Do not use romantic language or pet names.
     Keep spoken replies natural and concise.
@@ -439,7 +439,7 @@ val messages = JSONArray()
                 reply,
                 TextToSpeech.QUEUE_FLUSH,
                 null,
-                "manisha_reply"
+                "MIRA_reply"
             )
         } catch (e: Exception) {
             isProcessing = false
@@ -472,7 +472,7 @@ val messages = JSONArray()
                     override fun onDone(utteranceId: String?) {
                         handler.post {
                             isProcessing = false
-                            broadcastStatus("Say MANISHA to speak again")
+                            broadcastStatus("Say MIRA to speak again")
                             handler.postDelayed({
                                 startListening()
                             }, 700)
@@ -515,7 +515,7 @@ val messages = JSONArray()
 
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "MANISHA Voice Assistant",
+                "MIRA Voice Assistant",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Voice assistant listening notification"
@@ -545,7 +545,7 @@ val messages = JSONArray()
         } catch (_: Exception) {
         }
 
-        broadcastStatus("MANISHA voice service stopped")
+        broadcastStatus("MIRA voice service stopped")
 
         super.onDestroy()
     }
