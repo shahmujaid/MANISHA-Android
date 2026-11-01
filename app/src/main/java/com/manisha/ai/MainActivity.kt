@@ -4,9 +4,12 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -68,13 +71,14 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    private var voiceServiceActive = false
     private val http = OkHttpClient()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private var pendingLocale: String = "hi-IN"
     private var recognizedCallback: ((String) -> Unit)? = null
     private var statusCallback: ((String) -> Unit)? = null
 
-    private var voiceServiceActive = false
     private var startServiceAfterPermission = false
 
 private fun startMiraVoiceService() {
@@ -169,8 +173,48 @@ onOpenApp = { appName ->
     }
 
     override fun onInit(status: Int) {
-        ttsReady = status == TextToSpeech.SUCCESS
+    ttsReady = status == TextToSpeech.SUCCESS
+
+    if (ttsReady) {
+        tts?.setOnUtteranceProgressListener(
+            object : UtteranceProgressListener() {
+
+                override fun onStart(utteranceId: String?) {
+                }
+
+                override fun onDone(utteranceId: String?) {
+                    if (utteranceId == "MIRA_reply" && voiceServiceActive) {
+                        runOnUiThread {
+                            val resumeIntent = Intent(
+                                this@MainActivity,
+                                WakeWordService::class.java
+                            ).apply {
+                                action = WakeWordService.ACTION_RESUME
+                            }
+
+                            startService(resumeIntent)
+                        }
+                    }
+                }
+
+                override fun onError(utteranceId: String?) {
+                    if (utteranceId == "MIRA_reply" && voiceServiceActive) {
+                        runOnUiThread {
+                            val resumeIntent = Intent(
+                                this@MainActivity,
+                                WakeWordService::class.java
+                            ).apply {
+                                action = WakeWordService.ACTION_RESUME
+                            }
+
+                            startService(resumeIntent)
+                        }
+                    }
+                }
+            }
+        )
     }
+}
 
     private fun speak(text: String, language: String) {
         if (!ttsReady) {
@@ -312,15 +356,15 @@ private fun askMIRA(
     Thread {
         try {
             val personality = """
-    You are MIRA, a professional, intelligent and respectful personal AI assistant.
-    Be friendly, warm, clear, helpful and efficient.
-    Communicate naturally and politely.
-    Do not use romantic language, pet names, or nicknames.
-    Never call the user jaan, baby, love, sweetheart, or similar names.
-    Focus on completing the user's tasks accurately.
-    Never pretend to be a real human.
+You are MIRA, a warm, friendly and intelligent AI assistant.
+Speak casually and naturally, like a helpful close friend.
+Use short, clear sentences, light humour and empathy when appropriate.
+Be respectful and focus on helping the user complete tasks.
+Use the user's name only when it is naturally appropriate.
+Never use romantic language, pet names or nicknames.
+Never pretend to be human.
+If asked whether you are human, clearly and honestly say you are an AI.
 """
-            }
 
             // Retrieve saved memories from local app storage.
             val savedMemories = SmartMemory
@@ -369,6 +413,8 @@ private fun askMIRA(
     Keep answers concise unless the user asks for detail.
     Preferred interface language: $language.
 """.trimIndent() + memorySection
+            
+    val messages = JSONArray()
 
 messages.put(
     JSONObject()
@@ -432,11 +478,14 @@ messages.put(
                     .getString("content")
                     .trim()
 
-                callback(Result.success(answer))
-            }
+                mainHandler.post {
+    callback(Result.success(answer))
+}
         } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
+    mainHandler.post {
+        callback(Result.failure(e))
+    }
+}
     }.start()
 }
 
@@ -463,7 +512,6 @@ fun MIRAScreen(
     String,
     String,
     String,
-    Boolean,
     List<ChatLine>,
     (Result<String>) -> Unit
 ) -> Unit,
@@ -511,6 +559,14 @@ onOpenApp: (String) -> String
 
 
     val scope = rememberCoroutineScope()
+
+    fun resumeMiraBackgroundListening() {
+    context.startService(
+        Intent(context, WakeWordService::class.java).apply {
+            action = WakeWordService.ACTION_RESUME
+        }
+    )
+}
 
     // Shared send function for both typed and recognized voice messages.
     
