@@ -922,18 +922,6 @@ if (apiKey.isBlank()) {
 }
 
 Spacer(Modifier.height(12.dp))
-
-Row(
-    modifier = Modifier
-        .fillMaxWidth()
-        .clip(RoundedCornerShape(14.dp))
-        .background(Color(0xFF1A2B42))
-        .padding(12.dp),
-    horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically
-) {
-    
-
     
 // MIRA Quick Actions
 Row(
