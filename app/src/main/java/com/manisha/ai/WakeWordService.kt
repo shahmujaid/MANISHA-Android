@@ -33,6 +33,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
         const val ACTION_COMMAND = "com.manisha.ai.COMMAND"
         const val ACTION_REPLY = "com.manisha.ai.REPLY"
         const val ACTION_STOP = "com.manisha.ai.STOP"
+        const val ACTION_RESUME = "com.manisha.ai.RESUME"
 
         const val EXTRA_TEXT = "text"
 
@@ -98,18 +99,38 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     }
 
     override fun onStartCommand(
-        intent: Intent?,
-        flags: Int,
-        startId: Int
-    ): Int {
+    intent: Intent?,
+    flags: Int,
+    startId: Int
+): Int {
 
-        if (intent?.action == ACTION_STOP) {
+    when (intent?.action) {
+
+        ACTION_STOP -> {
             stopSelf()
             return START_NOT_STICKY
         }
 
-        return START_NOT_STICKY
+        ACTION_RESUME -> {
+            isProcessing = false
+            waitingForCommand = false
+
+            handler.removeCallbacksAndMessages(null)
+
+            recognizer?.cancel()
+            recognizer?.destroy()
+            recognizer = null
+
+            broadcastStatus("Say MIRA to activate")
+
+            handler.postDelayed({
+                startListening()
+            }, 700)
+        }
     }
+
+    return START_NOT_STICKY
+}
 
     private fun getLanguageTag(value: String): String {
         return when (value.lowercase()) {
