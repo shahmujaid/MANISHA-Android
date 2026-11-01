@@ -160,12 +160,26 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                         }
 
                         override fun onError(error: Int) {
-                            if (!isProcessing) {
-                                handler.postDelayed({
-                                    startListening()
-                                }, 1000)
-                            }
-                        }
+    val errorMessage = when (error) {
+        SpeechRecognizer.ERROR_AUDIO -> "Microphone audio error"
+        SpeechRecognizer.ERROR_CLIENT -> "Speech recognition client error"
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission denied"
+        SpeechRecognizer.ERROR_NETWORK -> "Speech recognition network error"
+        SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Speech recognition network timeout"
+        SpeechRecognizer.ERROR_NO_MATCH -> "MIRA could not recognise your voice"
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognizer is busy"
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech detected"
+        else -> "Speech recognition error: $error"
+    }
+
+    broadcastStatus(errorMessage)
+
+    if (!isProcessing) {
+        handler.postDelayed({
+            startListening()
+        }, 1500)
+    }
+}
 
                         override fun onResults(results: android.os.Bundle?) {
                             val matches = results?.getStringArrayList(
