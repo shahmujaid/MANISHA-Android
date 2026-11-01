@@ -294,10 +294,20 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                 sendCommandToGroq(command)
             } else {
                 waitingForCommand = true
-                broadcastStatus("MIRA activated. Speak your command.")
-                handler.postDelayed({
-                    startListening()
-                }, 500)
+broadcastStatus("MIRA activated. Speak your command.")
+
+if (ttsReady && tts != null) {
+    tts?.speak(
+        "Yes, I'm listening.",
+        TextToSpeech.QUEUE_FLUSH,
+        null,
+        "MIRA_ack"
+    )
+} else {
+    handler.postDelayed({
+        startListening()
+    }, 500)
+}
             }
         } else {
             handler.postDelayed({
@@ -321,142 +331,6 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 
     sendBroadcast(userIntent)
 }
-
-        Thread {
-
-            try {
-                val prefs = getSharedPreferences(
-                    "manisha_settings",
-                    MODE_PRIVATE
-                )
-
-                val apiKey = prefs.getString("groq_key", "").orEmpty()
-
-                val model = prefs.getString(
-                    "model",
-                    "openai/gpt-oss-20b"
-                ) ?: "openai/gpt-oss-20b"
-
-                if (apiKey.isBlank()) {
-                    throw Exception("Groq API key is missing in MIRA settings")
-                }
-
-                val languageInstruction = when (languageTag) {
-    "hi-IN" -> """
-        Reply in natural, everyday Indian Hindi.
-        Use casual spoken Hindi mixed naturally with common English words.
-        Avoid formal, textbook or overly pure Hindi.
-        Always use feminine grammar when referring to yourself.
-        Say "Main bata deti hoon", "Main kar sakti hoon",
-        and "Main samajh gayi".
-        Never use masculine forms like "bata deta hoon" or "kar sakta hoon".
-    """.trimIndent()
-
-    "mr-IN" -> """
-        Reply in natural, everyday conversational Marathi.
-        Keep the language friendly and easy to understand.
-        Maintain a feminine speaking identity.
-    """.trimIndent()
-
-    "gu-IN" -> """
-        Reply in natural, everyday conversational Gujarati.
-        Keep the language friendly and easy to understand.
-        Maintain a feminine speaking identity.
-    """.trimIndent()
-
-    else -> """
-        Reply in natural conversational English.
-        Maintain a warm, friendly and feminine speaking identity.
-    """.trimIndent()
-}
-
-                val girlfriendMode = prefs.getBoolean("girlfriend_mode", true)
-
-val personality = if (girlfriendMode) {
-    """
-    You are MIRA, the user's affectionate AI girlfriend and personal assistant.
-    Be romantic, caring, playful and emotionally supportive.
-    Use sweet nicknames such as jaan, love, baby, or dear occasionally and naturally.
-    Keep spoken replies warm, natural and concise.
-    Never pretend to be a real human.
-    """
-} else {
-    """
-    You are MIRA, a professional, intelligent and respectful personal AI assistant.
-    Be helpful, clear and task-focused.
-    Do not use romantic language or pet names.
-    Keep spoken replies natural and concise.
-    Never pretend to be a real human.
-    """
-}
-
-                val systemPrompt = """
-    $personality
-    $languageInstruction
-""".trimIndent()
-
-val messages = JSONArray()
-    .put(
-        JSONObject()
-            .put("role", "system")
-            .put("content", systemPrompt)
-    )
-    .put(
-        JSONObject()
-            .put("role", "user")
-            .put("content", command)
-    )
-                val requestJson = JSONObject()
-                    .put("model", model)
-                    .put("messages", messages)
-                    .put("temperature", 0.7)
-                    .put("max_tokens", 700)
-
-                val body = requestJson.toString().toRequestBody(
-                    "application/json; charset=utf-8".toMediaType()
-                )
-
-                val request = Request.Builder()
-                    .url("https://api.groq.com/openai/v1/chat/completions")
-                    .addHeader("Authorization", "Bearer $apiKey")
-                    .addHeader("Content-Type", "application/json")
-                    .post(body)
-                    .build()
-
-                httpClient.newCall(request).execute().use { response ->
-
-                    val responseBody = response.body?.string().orEmpty()
-
-                    if (!response.isSuccessful) {
-                        throw Exception("Groq request failed: HTTP ${response.code}")
-                    }
-
-                    val json = JSONObject(responseBody)
-
-                    val reply = json
-                        .getJSONArray("choices")
-                        .getJSONObject(0)
-                        .getJSONObject("message")
-                        .getString("content")
-                        .trim()
-
-                    handler.post {
-                        handleReply(reply)
-                    }
-                }
-
-            } catch (e: Exception) {
-
-                handler.post {
-                    handleReply(
-                        "Sorry, I could not complete that request. Please try again."
-                    )
-                    broadcastStatus(e.message ?: "AI request failed")
-                }
-            }
-
-        }.start()
-    }
 
     private fun handleReply(reply: String) {
 
