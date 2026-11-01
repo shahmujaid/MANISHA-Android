@@ -181,21 +181,23 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     }
 }
 
-                        override fun onResults(results: android.os.Bundle?) {
-                            val matches = results?.getStringArrayList(
-                                SpeechRecognizer.RESULTS_RECOGNITION
-                            )
+                       override fun onResults(results: android.os.Bundle?) {
+    val matches = results?.getStringArrayList(
+        SpeechRecognizer.RESULTS_RECOGNITION
+    )
 
-                            val spoken = matches?.firstOrNull()?.trim().orEmpty()
+    val spoken = matches?.firstOrNull()?.trim().orEmpty()
 
-                            if (spoken.isNotBlank()) {
-                                processRecognizedSpeech(spoken)
-                            } else if (!isProcessing) {
-                                handler.postDelayed({
-                                    startListening()
-                                }, 700)
-                            }
-                        }
+    if (spoken.isNotBlank()) {
+        broadcastStatus("MIRA heard: $spoken")
+        processRecognizedSpeech(spoken)
+    } else if (!isProcessing) {
+        broadcastStatus("No speech recognised")
+        handler.postDelayed({
+            startListening()
+        }, 700)
+    }
+}
 
                         override fun onPartialResults(
                             partialResults: android.os.Bundle?
