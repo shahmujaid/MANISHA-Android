@@ -501,8 +501,8 @@ messages.put(
                 mainHandler.post {
     callback(Result.success(answer))
 }
+            }
         } catch (e: Exception) {
-    mainHandler.post {
         callback(Result.failure(e))
     }
 }
