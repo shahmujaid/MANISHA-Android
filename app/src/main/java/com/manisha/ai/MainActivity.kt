@@ -902,6 +902,44 @@ Row(
     )
 }
 
+// MIRA Quick Actions
+Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(8.dp)
+) {
+    val actions = listOf(
+        "💬 Chat",
+        "🎙 Voice",
+        "🌐 Web",
+        "📄 Documents"
+    )
+
+    actions.forEach { action ->
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF132B43))
+                .border(
+                    1.dp,
+                    Cyan.copy(alpha = 0.35f),
+                    RoundedCornerShape(12.dp)
+                )
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = action,
+                color = SoftWhite,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+Spacer(Modifier.height(12.dp))
+
                 Text(
                     "CONVERSATION",
                     color = Color(0xFF80B7D2),
