@@ -151,13 +151,12 @@ private fun stopMiraVoiceService() {
                     statusCallback = status
                     startListening(locale)
                 },
-                onAsk = { prompt, language, apiKey, model, girlfriendMode, conversationHistory, done ->
+                onAsk = { prompt, language, apiKey, model, conversationHistory, done ->
     askMIRA(
         prompt,
         language,
         apiKey,
         model,
-        girlfriendMode,
         conversationHistory,
         done
     )
@@ -298,7 +297,6 @@ private fun askMIRA(
     language: String,
     apiKey: String,
     model: String,
-    girlfriendMode: Boolean,
     conversationHistory: List<ChatLine>,
     callback: (Result<String>) -> Unit
 ) {
@@ -313,21 +311,15 @@ private fun askMIRA(
 
     Thread {
         try {
-            val personality = if (girlfriendMode) {
-                """
-                You are MIRA, the user's affectionate AI girlfriend and personal assistant.
-                Be romantic, caring, playful, emotionally supportive and natural.
-                Use sweet nicknames such as jaan, love, baby, or dear occasionally and naturally.
-                Ask about the user's day and show interest without being clingy or repetitive.
-                Never pretend to be a real human.
-                """
-            } else {
-                """
-                You are MIRA, a professional, intelligent and respectful Indian personal AI assistant.
-                Be clear, helpful, efficient and task-focused.
-                Do not use romantic language or pet names.
-                Never pretend to be a real human.
-                """
+            val personality = """
+    You are MIRA, a professional, intelligent and respectful personal AI assistant.
+    Be friendly, warm, clear, helpful and efficient.
+    Communicate naturally and politely.
+    Do not use romantic language, pet names, or nicknames.
+    Never call the user jaan, baby, love, sweetheart, or similar names.
+    Focus on completing the user's tasks accurately.
+    Never pretend to be a real human.
+"""
             }
 
             // Retrieve saved memories from local app storage.
@@ -512,12 +504,7 @@ onOpenApp: (String) -> String
         mutableStateOf(prefs.getString("language", "hi-IN") ?: "hi-IN")
     }
 
-    var girlfriendMode by remember {
-    mutableStateOf(
-        prefs.getBoolean("girlfriend_mode", true)
-    )
-}
-
+    
     var input by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("Ready when you are") }
     var loading by remember { mutableStateOf(false) }
@@ -640,7 +627,7 @@ if (apiKey.isBlank()) {
 
     val conversationHistory = messages.dropLast(1).takeLast(10)
 
-    onAsk(prompt, language, apiKey, model, girlfriendMode, conversationHistory) { result ->
+    onAsk(prompt, language, apiKey, model, conversationHistory) { result ->
         scope.launch {
             loading = false
 
@@ -882,30 +869,9 @@ Row(
     horizontalArrangement = Arrangement.SpaceBetween,
     verticalAlignment = Alignment.CenterVertically
 ) {
-    Column {
-        Text(
-            "💕 Girlfriend Mode",
-            color = SoftWhite,
-            fontSize = 15.sp
-        )
-        Text(
-            if (girlfriendMode) "Romantic & caring" else "Professional assistant",
-            color = Color(0xFF80B7D2),
-            fontSize = 11.sp
-        )
-    }
+    
 
-    Switch(
-        checked = girlfriendMode,
-        onCheckedChange = { enabled ->
-            girlfriendMode = enabled
-            prefs.edit()
-                .putBoolean("girlfriend_mode", enabled)
-                .apply()
-        }
-    )
-}
-
+    
 // MIRA Quick Actions
 Row(
     modifier = Modifier.fillMaxWidth(),
