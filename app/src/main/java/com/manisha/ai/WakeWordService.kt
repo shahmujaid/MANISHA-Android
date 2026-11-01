@@ -169,6 +169,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                         }
 
                         override fun onBeginningOfSpeech() {
+                            broadcastStatus("MIRA can hear your voice")
                         }
 
                         override fun onRmsChanged(rmsdB: Float) {
