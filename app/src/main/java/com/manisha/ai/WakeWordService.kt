@@ -222,9 +222,17 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
 }
 
                         override fun onPartialResults(
-                            partialResults: android.os.Bundle?
-                        ) {
-                        }
+    partialResults: android.os.Bundle?
+) {
+    val matches = partialResults?.getStringArrayList(
+        SpeechRecognizer.RESULTS_RECOGNITION
+    )
+    val spoken = matches?.firstOrNull()?.trim().orEmpty()
+
+    if (spoken.isNotBlank()) {
+        broadcastStatus("MIRA is hearing: $spoken")
+    }
+}}
 
                         override fun onEvent(
                             eventType: Int,
@@ -251,9 +259,21 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
                     languageTag
                 )
                 putExtra(
-                    RecognizerIntent.EXTRA_PARTIAL_RESULTS,
-                    false
-                )
+    RecognizerIntent.EXTRA_PARTIAL_RESULTS,
+    true
+)
+putExtra(
+    RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
+    10000L
+)
+putExtra(
+    RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
+    5000L
+)
+putExtra(
+    RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
+    1500L
+)
                 putExtra(
                     RecognizerIntent.EXTRA_MAX_RESULTS,
                     1
