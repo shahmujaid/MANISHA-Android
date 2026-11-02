@@ -232,7 +232,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     if (spoken.isNotBlank()) {
         broadcastStatus("MIRA is hearing: $spoken")
     }
-}}
+}
 
                         override fun onEvent(
                             eventType: Int,
