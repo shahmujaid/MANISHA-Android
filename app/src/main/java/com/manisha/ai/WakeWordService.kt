@@ -199,7 +199,7 @@ class WakeWordService : Service(), TextToSpeech.OnInitListener {
     if (!isProcessing) {
         handler.postDelayed({
             startListening()
-        }, 1500)
+        }, 5000)
     }
 }
 
