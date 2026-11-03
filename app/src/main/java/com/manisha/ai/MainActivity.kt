@@ -680,6 +680,11 @@ if (appCommand != null) {
 if (apiKey.isBlank()) {
     status = "Please add your Groq API key in Settings."
     showSettings = true
+
+    if (voiceServiceActive) {
+        resumeMiraBackgroundListening()
+    }
+
     return
 }
 
