@@ -698,16 +698,17 @@ if (apiKey.isBlank()) {
                 messages.add(ChatLine(false, answer))
                 status = "Here for you"
                 onSpeak(answer, language)
-            }.onFailure { error ->
-                val errorMessage = error.message ?: "Something went wrong."
-                messages.add(ChatLine(false, errorMessage))
-                status = "Please check settings"
-            }
-        }
+           }.onFailure { error ->
+    val errorMessage = error.message ?: "Something went wrong."
+    messages.add(ChatLine(false, errorMessage))
+    status = "Please check settings"
+
+    if (voiceServiceActive) {
+        resumeMiraBackgroundListening()
     }
 }
 
-
+            
 // Receive messages and status from the background voice service.
 
 
