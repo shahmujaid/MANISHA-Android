@@ -288,54 +288,57 @@ putExtra(
         }
     }
 
-    private fun processRecognizedSpeech(spoken: String) {
+    
+private fun processRecognizedSpeech(spoken: String) {
 
-        if (isProcessing) return
+    if (isProcessing) return
 
-        val wakeWord = Regex(
-    "\\b(m+i+r+a+|m+e+e+r+a+|m+y+r+a+)\\b",
-    RegexOption.IGNORE_CASE
-)
-
-        if (waitingForCommand) {
-            waitingForCommand = false
-            sendCommandToGroq(spoken)
-            return
-        }
-
-        val match = wakeWord.find(spoken)
-
-        if (match != null) {
-            val command = spoken
-                .substring(match.range.last + 1)
-                .trim()
-                .trim(',', '.', '!', '?')
-
-            if (command.isNotBlank()) {
-                sendCommandToGroq(command)
-            } else {
-                waitingForCommand = true
-broadcastStatus("MIRA activated. Speak your command.")
-
-if (ttsReady && tts != null) {
-    tts?.speak(
-        "Yes, I'm listening.",
-        TextToSpeech.QUEUE_FLUSH,
-        null,
-        "MIRA_ack"
-    )
-} else {
-    handler.postDelayed({
-        startListening()
-    }, 500)
-}
-            }
-        } else {
-            handler.postDelayed({
-                startListening()
-            }, 500)
-        }
+    if (waitingForCommand) {
+        waitingForCommand = false
+        sendCommandToGroq(spoken)
+        return
     }
+
+    val wakeWord = Regex(
+        "(?i)(^|[\\s,])(?:m+i+r+a+|m+e+e+r+a+|m+y+r+a+|मीरा|मेरा)(?=$|[\\s,.!?])"
+    )
+
+    val match = wakeWord.find(spoken)
+
+    if (match != null) {
+
+        val command = spoken
+            .substring(match.range.last + 1)
+            .trim()
+            .trim(',', '.', '!', '?')
+
+        if (command.isNotBlank()) {
+            sendCommandToGroq(command)
+        } else {
+            waitingForCommand = true
+
+            broadcastStatus("MIRA activated. Speak your command.")
+
+            if (ttsReady && tts != null) {
+                tts?.speak(
+                    "Yes, I'm listening.",
+                    TextToSpeech.QUEUE_FLUSH,
+                    null,
+                    "MIRA_ack"
+                )
+            } else {
+                handler.postDelayed({
+                    startListening()
+                }, 500)
+            }
+        }
+
+    } else {
+        handler.postDelayed({
+            startListening()
+        }, 500)
+    }
+}
 
     private fun sendCommandToGroq(command: String) {
 
